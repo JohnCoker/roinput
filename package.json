@@ -1,0 +1,35 @@
+{
+  "name": "roinput",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "RASOrbit Input Editor: Tauri/React desktop app for editing RASOrbit input files.",
+  "author": "John Coker <john@jcsw.com>",
+  "license": "ISC",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@fluentui/react-components": "^9.73.3",
+    "@fluentui/react-icons": "^2.0.320",
+    "@fluentui/react-message-bar": "^9.6.23",
+    "@tauri-apps/api": "^2.10.1",
+    "@tauri-apps/plugin-dialog": "2.7.0",
+    "@tauri-apps/plugin-fs": "2.5.0",
+    "@tauri-apps/plugin-opener": "^2",
+    "@tauri-apps/plugin-store": "^2",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.6.0",
+    "typescript": "~5.8.3",
+    "vite": "^7.0.4"
+  }
+}

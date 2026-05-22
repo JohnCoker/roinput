@@ -1,0 +1,7 @@
+theme: jekyll-theme-minimal
+title: RASOrbit Input Editor
+logo: /logo.png
+description: A desktop app for editing RASOrbit input files.
+
+plugins:
+  - jekyll-github-metadata
