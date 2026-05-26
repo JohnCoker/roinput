@@ -1,5 +1,5 @@
 #!/bin/sh
-rm -rf app.iconset src-tauri/icons/icon.icns
+rm -rf app.iconset 
 mkdir app.iconset
 sips -z 16 16     artwork/app-icon-apple.png --out app.iconset/icon_16x16.png
 sips -z 32 32     artwork/app-icon-apple.png --out app.iconset/icon_16x16@2x.png
