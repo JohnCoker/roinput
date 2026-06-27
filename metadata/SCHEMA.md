@@ -3,6 +3,13 @@
 This documents the RASOrbit `.dat` input file model and [fields.csv](fields.csv) is metadata
 for the individual fields.
 
+## Sources
+
+The two PDFs in this directory — `GUI Front End for RASOrbit - 1.pdf` and
+`GUI Front End for RASOrbit - 2.pdf` — document the program's input screens; references below
+to **the slides** mean these. RASOrbit's own labeled `.out` echo (written for each run) is the
+authoritative source for field labels and units.
+
 ## How each value is located in the file
 
 This metadata pins down exactly where every value is **read from and written to**. It
@@ -55,7 +62,11 @@ The writer, by contrast, is strict (see "Global write-format rules").
 ### Error tolerance
 
 **Cosmetic** errors (intra-line spacing, blank lines, mild re-wrapping, matrix-row
-padding) are recoverable and are fixed automatically on save. **Structural** errors — a
+padding, CRLF vs LF line endings, a trailing DOS end-of-file byte `0x1A`, and
+leading/trailing spaces on the title line) are recoverable and are fixed automatically on
+save. The reader accepts LF or CRLF and strips a trailing `0x1A`; the writer emits **CRLF**
+and a trailing **`0x1A`** (RASOrbit is a Windows program, and every known-good input file
+ends with this DOS soft-EOF byte — it is harmless since it follows the last record). **Structural** errors — a
 missing or extra value, so a count no longer matches the data that follows — cannot always
 be unambiguously located (a missing value shifts everything after it). The reader uses each
 record's expected value count and line layout as a redundancy check to detect and localize
@@ -63,6 +74,17 @@ such errors, and blanks out the affected section/stage rather than mis-assigning
 Line structure helps here: a matrix row line that is short, or a count outside its valid
 range, pinpoints trouble earlier than a pure token stream could. (Both classes occur in
 practice: a value can be dropped or added, on top of whitespace perturbations.)
+
+One read-time divergence from RASOrbit is worth noting: RASOrbit reads fixed columns, but
+this reader splits on whitespace, so two values that **abut with no separating space** are
+read as one token here while RASOrbit would split them by column. This is largely caught —
+in matrices and fixed scalar groups the merge drops the token count (a short-row/short-group
+structural error), and in any field a merged token is usually not a finite number (two
+decimal points, or an embedded minus), which is rejected. The only silent residue is a merge
+that stays a valid number (e.g. a float abutting a bare integer) inside a free vector whose
+count can still be satisfied — a narrow case, since multi-value lines here are almost always
+all-floats. The reverse (a value merely *misaligned* but still space-separated) is read fine
+and **repaired on save**, which is the intended lenient-read / strict-write behavior.
 
 #### No resync after a desync
 
@@ -113,7 +135,7 @@ deterministic in both directions: **there is no field we can read but cannot wri
 | `line`      | `same` if this record shares the previous record's physical line (used for the few multi-field lines); blank = start a new line. See "Line grouping". |
 | `control`   | Suggested UI control: `text`, `number`, `grid`, or `radio:...` with `option=value` pairs. |
 | `min`,`max` | Allowed value range (blank = unbounded). |
-| `step`      | GUI spinner increment only. File precision is a fixed 4 decimals for all floats (see write rules), independent of `step`. |
+| `step`      | GUI spinner increment only. Independent of file precision (see write rules). |
 | `page`      | Input page number the field appears on (1–12). |
 | `group`     | Group/section heading within the page. |
 | `validate`  | Extra rules beyond `min`/`max` that need code: cross-field constraints (e.g. `printout_rate >= integration_time_step`), special rules (`first time must be 0`), and autofill/label-branch notes. |
@@ -197,10 +219,10 @@ Every other count/scalar sits on its own line.
 
 ### RASOrbit is strict
 
-RASOrbit (a FORTRAN program) reads the file with fixed formats, not lenient whitespace: per
-the author, "if a number is one space off, if there is a gap between lines, it won't run —
-everything should be perfectly lined up." So the writer must reproduce the exact
-fixed-column layout; there is no margin.
+RASOrbit (a FORTRAN program) reads the file with fixed formats, not lenient whitespace: if a
+number is one space off, or there is a gap between lines, it will not run — everything must
+line up exactly. So the writer must reproduce the exact fixed-column layout; there is no
+margin.
 
 ### Format
 
@@ -216,9 +238,14 @@ lines):
   because every count is ≤ 40 and every code is ≤ 2 — a writer should still guard against an
   unexpected ≥ 100 value.
 - **`float`**: **left-justified** in the 10-column slot (sign or first digit in the start
-  column, matching the slides' "first number must be in these columns") with **4 decimal
-  places** for every float field. Per the author, we use the slides' precision regardless of
-  the original file (e.g. `-15.0` is written `-15.0000`).
+  column, as the slides require the first number to begin in those columns). A decimal point is
+  always present, with **at least 4 decimals** (padded — e.g. `-15.0` is written `-15.0000`,
+  matching the precision shown in the slides), **more** only when needed to represent the
+  value exactly (so `0.27083` is not rounded to `0.2708`), and **fewer** only when 4 would
+  overflow (large engine thrusts like `203779.8` → `203779.800`). The formatted value is
+  capped at 9 characters so a left-justified value always leaves at least one space in its
+  10-column slot; RASOrbit reads fixed columns, but a lenient whitespace reader needs the
+  gap so two full-width values never abut.
 - **`text`** (only `title`): written verbatim in columns 1–80 of line 1.
 - **Line wrapping** is uniform: vectors and matrix rows pack **8 values per line**, then
   wrap (8 × 10 columns = 80). In the example files every multi-value line (`mach`,
@@ -300,19 +327,21 @@ preserved every value.
 ## Coverage of the example files
 
 A broad set of confirmed-working files (with matching `.out` outputs) exercises every major
-branch; the metadata-driven, line-aware parser reads all of them with no leftover lines. Use
-the `Rev A` files as canonical.
+branch; the metadata-driven, line-aware parser reads all of them with no leftover lines.
+These live under [../test/data/valid/](../test/data/valid/) (paired `.dat` + `.out`), with
+cosmetic variants under `test/data/cosmetic/` and structurally broken examples under
+`test/data/broken/`.
 
 | File | Vehicle | aero | stages | engine | launch | heating |
 |------|---------|------|--------|--------|--------|---------|
-| DATA-10A US Rev A | Minotaur I | CN/CA | 4 | Type 2 | vertical | on |
-| DATA-10A CL CD US Rev A | Minotaur I | CL/CD | 4 | Type 2 | vertical | on |
-| DATA-10B Metric Rev A | Minotaur I | CN/CA | 4 | Type 2 | vertical | on |
-| DATA-12A Space Shuttle US | Shuttle reentry | CN/CA | 1 | none (glider) | conventional | on |
-| DATA-12C Space Shuttle CL CD | Shuttle reentry | CL/CD | 1 | none (glider) | conventional | on |
-| DATA-12D Space Shuttle Heating Off | Shuttle reentry | CN/CA | 1 | none (glider) | conventional | **off** |
-| DATA-17A X-15 US | X-15 air-launch | CN/CA | 1 | **Type 1** (chamber pressure) | conventional | on |
-| DATA-17B X-15 Metric | X-15 air-launch | CN/CA | 1 | Type 1 | conventional | on |
+| DATA-10A - US Units | Minotaur I | CN/CA | 4 | Type 2 | vertical | on |
+| DATA-10A - CL CD - US Units | Minotaur I | CL/CD | 4 | Type 2 | vertical | on |
+| DATA-10B - Metric Units | Minotaur I | CN/CA | 4 | Type 2 | vertical | on |
+| DATA-12A - Space Shuttle - US Units | Shuttle reentry | CN/CA | 1 | none (glider) | conventional | on |
+| DATA-12C - Space Shuttle - CL CD - US Units | Shuttle reentry | CL/CD | 1 | none (glider) | conventional | on |
+| DATA-12D - Space Shuttle - Heating Off - US Units | Shuttle reentry | CN/CA | 1 | none (glider) | conventional | **off** |
+| DATA-17A - X-15 - US Units | X-15 air-launch | CN/CA | 1 | **Type 1** (chamber pressure) | conventional | on |
+| DATA-17B - X-15 - Metric Units | X-15 air-launch | CN/CA | 1 | Type 1 | conventional | on |
 
 Between them these files cover both `units`, both `aero_type`, all three `engine_type` values
 (0 glider, 1 chamber pressure, 2 thrust history), both `launch_mode` values, both
@@ -345,14 +374,13 @@ parser/writer/GUI need are **not** encoded as data and must be implemented or ke
 
 One real discrepancy plus minor / value-bound items:
 
-- **Last engine-history time vs `total_time`.** The author says the last history time must
-  equal the total run time, and the Type-2 thrust-history files obey this (578 = 578). But
+- **Last engine-history time vs `total_time`.** The last history time is expected to equal the
+  total run time, and the Type-2 thrust-history files obey this (578 = 578). But
   both Type-1 chamber-pressure files (X-15) end the history at 80 s while `total_time` is
   1000 s. So the rule is either thrust-history-only, or not a hard requirement. Do **not**
   enforce it until clarified. (Likely: the curve need only cover the powered phase, and the
   vehicle coasts/glides afterward to `total_time`.)
-- Final review of the complete `min`/`max`/`step` list (Chuck approved the earlier values;
-  the pages 9–12 list went out in the last email — awaiting any corrections).
+- Final review of the complete `min`/`max`/`step` list for pages 9–12.
 - Placeholder maximums: most page 9–12 numeric fields use an upper bound of 9,000,000.
   Confirm real limits or that "effectively unbounded" is fine.
 - `longitude` range — unspecified (latitude is ±90). Leave unbounded, or ±180?
