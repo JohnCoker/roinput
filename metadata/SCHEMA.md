@@ -134,7 +134,7 @@ deterministic in both directions: **there is no field we can read but cannot wri
 | `when`      | Condition for the record to be present. A bare `field==value` (e.g. `engine_type==1`) tests the **current stage** (only meaningful on `per_stage` rows). An `any(...)` wrapper is a **vehicle-level** test across all stages (e.g. `any(engine_type>0)` = "any stage has an engine"), used to gate non-per-stage records. Blank = always present. |
 | `line`      | `same` if this record shares the previous record's physical line (used for the few multi-field lines); blank = start a new line. See "Line grouping". |
 | `control`   | Suggested UI control: `text`, `number`, `grid`, or `radio:...` with `option=value` pairs. |
-| `min`,`max` | Allowed value range (blank = unbounded). |
+| `min`,`max` | **Domain** value range only (blank = unbounded). See "Global write-format rules". |
 | `step`      | GUI spinner increment only. Independent of file precision (see write rules). |
 | `page`      | Input page number the field appears on (1–12). |
 | `group`     | Group/section heading within the page. |
@@ -245,7 +245,10 @@ lines):
   overflow (large engine thrusts like `203779.8` → `203779.800`). The formatted value is
   capped at 9 characters so a left-justified value always leaves at least one space in its
   10-column slot; RASOrbit reads fixed columns, but a lenient whitespace reader needs the
-  gap so two full-width values never abut.
+  gap so two full-width values never abut. In practice this caps magnitudes around
+  **9,999,999.9** — **10,000,000.0** does not fit (too many digits). That is a **format**
+  constraint, not a domain rule; `fields.csv` `max` is blank unless there is a meaningful
+  physical or slide-specified cap (e.g. `total_time` ≤ 10,000).
 - **`text`** (only `title`): written verbatim in columns 1–80 of line 1.
 - **Line wrapping** is uniform: vectors and matrix rows pack **8 values per line**, then
   wrap (8 × 10 columns = 80). In the example files every multi-value line (`mach`,
@@ -261,7 +264,7 @@ same way regardless. The same storage slots carry either set of coefficients —
 separate `cl`/`cd`/`dcd_off` storage; those are just the CL/CD branch's labels for the
 `cn`/`ca`/`dca_off` slots.
 
-- `aero_type` = 0 selects the CL/CD/CP branch; = 1 selects CN/CA/CP (confirmed). In the
+- `aero_type` = 0 selects the CL/CD/CP branch; = 1 selects CN/CA/CP. In the
   CL/CD/CP branch, relabel `cn` → "Lift Coefficient (CL)", `ca` → "Drag Coefficient (CD)",
   and `dca_off` → "Power-Off Delta Drag Coefficient" (`dcd_off`). `cp` is unchanged.
 - `units` SI vs English changes only the displayed unit; stored values are unchanged.
@@ -286,16 +289,16 @@ separate `cl`/`cd`/`dcd_off` storage; those are just the CL/CD branch's labels f
   or (b) the **last stage** of an otherwise-powered vehicle. So among the per-stage
   `engine_type` values, all are equal except the last, which may be 0.
 - **Page 11 is one vehicle-wide curve** that starts at time 0. It is present iff the vehicle
-  is powered (`any(engine_type>0)`); a pure glider has no page 11. Whether the curve's last
-  time must equal `total_time` is unsettled — see Open questions.
+  is powered (`any(engine_type>0)`); a pure glider has no page 11. The last history time may
+  be **less than** `total_time`; equality is not required.
 - **Glider last stage:** if the last stage is a glider on a powered vehicle, the history
-  values are 0 from that stage's start time onward (the curve still runs to `total_time`).
+  values are 0 from that stage's start time onward.
 
 ## Units & RASOrbit labels (from the `.out` echo)
 
 RASOrbit writes a labeled echo of the input at the top of each `.out` file. That echo is the
 **authoritative** source for field labels and units (it is how RASOrbit itself interprets the
-file). The units below are confirmed from the X-15 pair (`DATA-17A` English, `DATA-17B`
+file). The units below come from the X-15 pair (`DATA-17A` English, `DATA-17B`
 metric); fields not shown are dimensionless (coefficients, ratios, Mach, percentages) or
 angles in degrees (AoA, pitch, bank, azimuth, divergence/TVA angles).
 
@@ -326,7 +329,7 @@ preserved every value.
 
 ## Coverage of the example files
 
-A broad set of confirmed-working files (with matching `.out` outputs) exercises every major
+A broad set of working sample files (with matching `.out` outputs) exercises every major
 branch; the metadata-driven, line-aware parser reads all of them with no leftover lines.
 These live under [../test/data/valid/](../test/data/valid/) (paired `.dat` + `.out`), with
 cosmetic variants under `test/data/cosmetic/` and structurally broken examples under
@@ -346,8 +349,22 @@ cosmetic variants under `test/data/cosmetic/` and structurally broken examples u
 Between them these files cover both `units`, both `aero_type`, all three `engine_type` values
 (0 glider, 1 chamber pressure, 2 thrust history), both `launch_mode` values, both
 `nose_heating_model` values, `n_stages` 1 and 4, per-stage aero with varying `n_aoa`/`n_mach`,
-the Type-1 8+4 engine block, and page-11 present (powered) and absent (glider). Variations
-that still lack an example are listed under "Open questions".
+the Type-1 8+4 engine block, and page-11 present (powered) and absent (glider). Sample files
+do not cover: `traj_control = 0`, `n_weight > 2`, `n_stages` 2 or 3, or single-stage
+vertical launch.
+
+## Domain bounds
+
+Meaningful limits for validation and the GUI — distinct from the implicit 10-column float cap
+above.
+
+- **`geodetic_latitude`:** −90 to +90 (physical limits).
+- **`longitude`:** geodetic **±180** (same convention as the sample files: e.g. −116.833,
+  −120.6324, +173.148). Distinct from **`launch_azimuth` / `initial_heading_azimuth`**, which
+  use **0–359.9999** (360 → 0).
+- **`launch_azimuth` / `initial_heading_azimuth`:** 0 to 359.9999; 360 → 0 (in `fields.csv`).
+- **`total_time`:** max **10,000**.
+- **`n_history` / `n_traj`:** max **40** points each.
 
 ## Implementation notes (things the code must supply beyond the CSV)
 
@@ -363,27 +380,8 @@ parser/writer/GUI need are **not** encoded as data and must be implemented or ke
   a general expression engine.
 - **`control` grammar.** Radios are `radio:Label=value,Label=value`; split on `:` then `,`
   then `=`. Labels may contain `/` and spaces (e.g. `CL/CD/CP`) but never `,` or `=`.
-- **`validate` is human prose, not executable** — the GUI must implement those rules in code
-  (or we later add a machine-readable rule column).
-- **Display branches and autofills live in "Branch handling" prose, not the CSV** — a GUI
-  must source the relabeling/unit/autofill behavior from there. They do not affect file I/O.
+- **`validate` is human prose, not executable** — the GUI implements those rules in code.
+- **Display branches and autofills** are defined in "Branch handling", not in the CSV. They
+  do not affect file I/O.
 - **Page 2 has no fields** (informational panel); page iteration must tolerate the gap
   between page 1 and page 3.
-
-## Open questions
-
-One real discrepancy plus minor / value-bound items:
-
-- **Last engine-history time vs `total_time`.** The last history time is expected to equal the
-  total run time, and the Type-2 thrust-history files obey this (578 = 578). But
-  both Type-1 chamber-pressure files (X-15) end the history at 80 s while `total_time` is
-  1000 s. So the rule is either thrust-history-only, or not a hard requirement. Do **not**
-  enforce it until clarified. (Likely: the curve need only cover the powered phase, and the
-  vehicle coasts/glides afterward to `total_time`.)
-- Final review of the complete `min`/`max`/`step` list for pages 9–12.
-- Placeholder maximums: most page 9–12 numeric fields use an upper bound of 9,000,000.
-  Confirm real limits or that "effectively unbounded" is fine.
-- `longitude` range — unspecified (latitude is ±90). Leave unbounded, or ±180?
-- `n_history` / `n_traj` max of 40 — examples stay well under (≤ 38); confirm the cap.
-- No example yet for `traj_control = 0` (pitch attitude + bank), `n_weight > 2`, `n_stages`
-  2 or 3, or a single-stage vertical launch. All low-risk.
