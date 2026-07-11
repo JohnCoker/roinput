@@ -272,8 +272,10 @@ separate `cl`/`cd`/`dcd_off` storage; those are just the CL/CD branch's labels f
   labels (from the `.out` echo)" below.
 - `launch_mode` (display only): when `0` (Conventional Flight), relabel `launch_azimuth` →
   "Initial Heading" and `initial_heading_azimuth` accordingly. When `1` (Vertical Launch),
-  autofill `initial_pitch`=90, `initial_bank`=0, `initial_aoa`=0,
-  `initial_heading_azimuth`=`launch_azimuth`. Storage is identical either way.
+  autofill `initial_pitch`=90, `initial_bank`=0, `initial_aoa`=0. Storage is identical
+  either way.
+- **`initial_heading_azimuth`:** always equals `launch_azimuth` (not user-editable in the
+  editor; the writer mirrors `launch_azimuth` on save).
 - `traj_control` (display only): `1` labels the middle array "Angle of Attack"; `0` labels
   it "Pitch Attitude". Same storage slot.
 - `engine_type` (display only, page 11): the single time history is labeled "Chamber
@@ -358,11 +360,12 @@ vertical launch.
 Meaningful limits for validation and the GUI — distinct from the implicit 10-column float cap
 above.
 
-- **`geodetic_latitude`:** −90 to +90 (physical limits).
-- **`longitude`:** geodetic **±180** (same convention as the sample files: e.g. −116.833,
-  −120.6324, +173.148). Distinct from **`launch_azimuth` / `initial_heading_azimuth`**, which
-  use **0–359.9999** (360 → 0).
+- **`geodetic_latitude`:** −90 to +90 (input and output).
+- **`longitude` (input):** geodetic **±180** (same convention as the sample files: e.g.
+  −116.833, −120.6324, +173.148). **`longitude` (output):** RASOrbit echoes **0–359.9999**
+  (360 → 0). The editor reads and writes the input convention.
 - **`launch_azimuth` / `initial_heading_azimuth`:** 0 to 359.9999; 360 → 0 (in `fields.csv`).
+  Always the same value in the file.
 - **`total_time`:** max **10,000**.
 - **`n_history` / `n_traj`:** max **40** points each.
 

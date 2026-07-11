@@ -33,12 +33,10 @@ two metadata artifacts:
    the intended presentation is free nav (outline: stage → page).
 8. **The UI collects only what `InputFile` persists.** A control with nowhere to land in the
    file has nothing to bind to. No UI-only data fields.
-9. **No fin/geometry in `.dat`.** The file format has no fin or geometry fields. Aero is
-   edited via coefficient tables only.
-10. **Page structure.** Header once (page 1); per-stage **aero** (pages 3–8) and per-stage
-    **stage/engine** (page 10) are two separate runs; launch (9), engine history (11, only if
-    powered), and trajectory (12) are once. Page 2 is text-only (no fields).
-11. **Full-file scope.** All 12 pages are in scope; `InputFile` reads/writes the entire file.
+9. **Page structure.** Header once (page 1); per-stage **aero** (pages 3–8) and per-stage
+   **stage/engine** (page 10) are two separate runs; launch (9), engine history (11, only if
+   powered), and trajectory (12) are once. Page 2 is text-only (no fields).
+10. **Full-file scope.** All 12 pages are in scope; `InputFile` reads/writes the entire file.
 
 ## Requirements
 
@@ -268,14 +266,9 @@ Logic implemented in TypeScript rather than metadata.
 
 ### Launch and trajectory (pages 9 and 12)
 
-- **`launch_mode`:** `0` Conventional, `1` Vertical. Relabel launch-line field; Vertical
-  autofills pitch=90, bank=0, aoa=0, `initial_heading_azimuth` = `launch_azimuth`.
+- **`launch_mode`:** `0` Conventional, `1` Vertical. Relabel `launch_azimuth` (and the
+  derived heading field) per SCHEMA.md; Vertical autofills pitch=90, bank=0, aoa=0.
 - **`traj_control`:** relabel middle trajectory column (Pitch Attitude vs Angle of Attack).
-- **`initial_heading_azimuth`:** editable; autofills from `launch_azimuth`; never overwritten
-  on load.
-
-## Open questions
-
-- Will the `.dat` format include geometry/fin inputs (Fin Can / Fin Shape)?
-- Should the editor compute aero from geometry, or only edit existing coefficient tables?
-- Can `initial_heading_azimuth` differ from `launch_azimuth`, or must it mirror it?
+- **`initial_heading_azimuth`:** always equals `launch_azimuth` (both modes). Hard-wired
+  autofill: show the value, never accept separate edits. Writer mirrors `launch_azimuth` into
+  the `initial_heading_azimuth` slot on save.

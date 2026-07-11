@@ -611,7 +611,7 @@ export class InputFile {
         floatCell(req(l.geodeticLatitude, "geodetic_latitude")),
         floatCell(req(l.longitude, "longitude")),
         floatCell(req(l.initialPitch, "initial_pitch")),
-        floatCell(req(l.initialHeadingAzimuth, "initial_heading_azimuth")),
+        floatCell(req(l.azimuth, "initial_heading_azimuth")),
         floatCell(req(l.initialBank, "initial_bank")),
         floatCell(req(l.initialAoa, "initial_aoa")),
       ]),
@@ -762,6 +762,17 @@ export class InputFile {
         fieldId: "total_time",
         severity: "error",
         message: "Total time must not be zero",
+      });
+    }
+    if (
+      l.azimuth !== null &&
+      l.initialHeadingAzimuth !== null &&
+      l.azimuth !== l.initialHeadingAzimuth
+    ) {
+      issues.push({
+        fieldId: "initial_heading_azimuth",
+        severity: "error",
+        message: "Initial heading/azimuth must equal launch azimuth",
       });
     }
     if (this.engineHistory && this.engineHistory.time[0] !== 0) {

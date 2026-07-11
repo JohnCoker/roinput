@@ -85,6 +85,14 @@ describe("validation rules", () => {
     ).toBe(true);
   });
 
+  it("flags initial heading when it differs from launch azimuth", () => {
+    const f = loadX15();
+    f.launch.initialHeadingAzimuth = 90;
+    expect(
+      f.validate().some((e) => e.fieldId === "initial_heading_azimuth"),
+    ).toBe(true);
+  });
+
   it("reports required fields missing on an empty file", () => {
     expect(new InputFile().validate().length).toBeGreaterThan(0);
   });

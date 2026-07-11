@@ -27,7 +27,7 @@ initial_velocity,Initial Velocity,scalar,float,,,,same,number,0,,0.0001,9,Initia
 geodetic_latitude,Geodetic Latitude,scalar,float,,,,same,number,-90,90,0.0001,9,Initial Conditions,
 longitude,Longitude,scalar,float,,,,same,number,-180,180,0.0001,9,Initial Conditions,geodetic ±180 (distinct from azimuth 0-360)
 initial_pitch,Initial Pitch Attitude,scalar,float,,,,same,number,-90,90,0.0001,9,Initial Conditions,autofill 90 if Vertical Launch
-initial_heading_azimuth,Initial Heading/Azimuth,scalar,float,,,,same,number,0,359.9999,0.0001,9,Initial Conditions,autofill = launch_azimuth if Vertical Launch
+initial_heading_azimuth,Initial Heading/Azimuth,scalar,float,,,,same,number,0,359.9999,0.0001,9,Initial Conditions,always = launch_azimuth; read-only derived (not editable)
 initial_bank,Initial Bank (Roll) Angle,scalar,float,,,,same,number,-90,90,0.0001,9,Initial Conditions,autofill 0 if Vertical Launch
 initial_aoa,Initial Angle of Attack,scalar,float,,,,same,number,-90,90,0.0001,9,Initial Conditions,autofill 0 if Vertical Launch
 integration_time_step,Integration Time Step,scalar,float,,,,,number,0,,0.0001,9,Integration,not zero; not negative
