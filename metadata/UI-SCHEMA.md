@@ -49,7 +49,7 @@ Requirements the metadata (plus `fields.csv` and code) must satisfy:
   sets** per run (`n_stages` 1–4).
 - **Conditional pages/blocks:** page 11 when any stage is powered; engine sub-blocks on page 10
   by `engine_type`; field-level `when` from `fields.csv`.
-- **Field groups** within a page (`group` column) as section headings.
+- **Field groups** within a page (`group` column) for visual clustering when rendering controls — not extra heading text.
 
 ### Page copy
 
@@ -148,8 +148,7 @@ flowchart TD
   produce one stage set per stage. The two runs are separate (fixed page 9 between them).
 - **Conditional pages/blocks.** Page 11 and page-10 engine sub-blocks use `when` from
   `fields.csv` (page 11 visibility can also be stated once in `pages.csv` or inferred in code).
-- **Field groups.** The `group` column names within-page section headings — the only thing we
-  call a "group."
+- **Field groups.** The `group` column clusters fields for layout (spacing, dividers) within a page — not displayed as headings.
 - **Page 2.** Text-only fixed page; no fields in `fields.csv`.
 
 ## Page metadata (`pages.csv`)
@@ -233,7 +232,7 @@ metadata.
 
 | Column | UI use |
 |--------|--------|
-| `page`, `group` | Placement and within-page section headings |
+| `page`, `group` | Placement and within-page layout clusters |
 | `label` | Default field label |
 | `control` | Widget type (`text`, `number`, `radio:…`, `grid`) |
 | `min`, `max`, `step` | Bounds and spinner increment |

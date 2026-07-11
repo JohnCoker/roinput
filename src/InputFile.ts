@@ -442,6 +442,8 @@ export class InputFile {
   };
   engineHistory?: EngineHistory;
   trajectory: Trajectory = { control: "aoaBank", time: [], angle: [], bank: [] };
+  /** Stages removed when lowering stage count; restored if the count is raised again. */
+  trimmedStages: Stage[] = [];
 
   /** True when any stage is powered (gates the page-11 engine history). */
   get powered(): boolean {
@@ -729,6 +731,29 @@ export class InputFile {
     return issues;
   }
 
+  private checkUniqueValues(
+    issues: Issue[],
+    id: string,
+    values: number[],
+    stage?: number,
+  ): void {
+    const def = field(id);
+    const seen = new Set<number>();
+    values.forEach((v, index) => {
+      if (seen.has(v)) {
+        issues.push({
+          fieldId: id,
+          stage,
+          index,
+          severity: "error",
+          message: `${def.label} values must be unique`,
+        });
+      } else {
+        seen.add(v);
+      }
+    });
+  }
+
   private crossFieldChecks(issues: Issue[]): void {
     const l = this.launch;
     if (
@@ -816,6 +841,16 @@ export class InputFile {
         });
       }
     });
+
+    this.stages.forEach((stage, si) => {
+      const sn = si + 1;
+      this.checkUniqueValues(issues, "aoa", stage.aoa, sn);
+      this.checkUniqueValues(issues, "mach", stage.mach, sn);
+    });
+    if (this.engineHistory) {
+      this.checkUniqueValues(issues, "history_time", this.engineHistory.time);
+    }
+    this.checkUniqueValues(issues, "traj_time", this.trajectory.time);
   }
 }
 

@@ -96,4 +96,23 @@ describe("validation rules", () => {
   it("reports required fields missing on an empty file", () => {
     expect(new InputFile().validate().length).toBeGreaterThan(0);
   });
+
+  it("flags duplicate angles of attack", () => {
+    const f = loadX15();
+    f.stages[0].aoa[1] = f.stages[0].aoa[0];
+    const issues = f.validate();
+    expect(
+      issues.some(
+        (e) => e.fieldId === "aoa" && e.index === 1 && /must be unique/.test(e.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("flags duplicate Mach numbers", () => {
+    const f = loadX15();
+    f.stages[0].mach[1] = f.stages[0].mach[0];
+    expect(
+      f.validate().some((e) => e.fieldId === "mach" && /must be unique/.test(e.message)),
+    ).toBe(true);
+  });
 });

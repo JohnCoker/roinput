@@ -33,9 +33,9 @@ body {
   -webkit-user-select: none;
 }
 
-.editor-area {
+.editor-area,
+.input-file-editor {
   flex: 1;
   min-height: 0;
-  overflow: auto;
-  padding: 0.5rem;
+  overflow: hidden;
 }

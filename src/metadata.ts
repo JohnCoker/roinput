@@ -7,6 +7,7 @@
 // share them without duplicating the limits.
 
 import csvRaw from "../metadata/fields.csv?raw";
+import { parseCsv } from "./csv";
 
 export type Kind = "scalar" | "vector" | "matrix";
 export type FieldType = "text" | "int" | "float" | "choice";
@@ -52,48 +53,6 @@ export interface FieldDef {
   group: string;
   validate: string;
   options?: ChoiceOption[];
-}
-
-/** Minimal RFC-4180-ish CSV: handles quoted fields with embedded commas. */
-function parseCsv(text: string): string[][] {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let cell = "";
-  let inQuotes = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (inQuotes) {
-      if (c === '"') {
-        if (text[i + 1] === '"') {
-          cell += '"';
-          i++;
-        } else {
-          inQuotes = false;
-        }
-      } else {
-        cell += c;
-      }
-    } else if (c === '"') {
-      inQuotes = true;
-    } else if (c === ",") {
-      row.push(cell);
-      cell = "";
-    } else if (c === "\n" || c === "\r") {
-      if (c === "\r" && text[i + 1] === "\n") i++;
-      row.push(cell);
-      cell = "";
-      // Skip rows that are entirely empty (e.g. a trailing newline).
-      if (row.length > 1 || row[0] !== "") rows.push(row);
-      row = [];
-    } else {
-      cell += c;
-    }
-  }
-  if (cell !== "" || row.length > 0) {
-    row.push(cell);
-    if (row.length > 1 || row[0] !== "") rows.push(row);
-  }
-  return rows;
 }
 
 function parseWhen(raw: string): WhenCondition | undefined {

@@ -16,11 +16,11 @@ import {
   DialogContent,
   DialogSurface,
   DialogTitle,
-  Textarea,
-  tokens,
 } from "@fluentui/react-components";
 import type { Theme } from "@fluentui/react-theme";
 import { UiErrorBoundary } from "./UiErrorBoundary";
+import { InputFileEditor } from "./InputFileEditor";
+import type { InputFile } from "./InputFile";
 import { isWindowsPlatform, WindowsAppMenuBar } from "./WindowsAppMenuBar";
 import { UpgradeNotificationBar } from "./UpgradeNotificationBar";
 import { basename, errorMessage } from "./util";
@@ -40,6 +40,8 @@ function App({ theme }: AppProps) {
   const [documentDirty, setDocumentDirty] = useState(false);
   /** Whether a document is currently being edited (new or opened). */
   const [documentOpen, setDocumentOpen] = useState(false);
+  /** Bumps when a new document is opened so the editor remounts from file text. */
+  const [editorKey, setEditorKey] = useState(0);
   const [recentListKey, setRecentListKey] = useState<string | null>(null);
   const [confirmRequest, setConfirmRequest] = useState<{
     resolve: (choice: ConfirmChoice) => void;
@@ -47,6 +49,7 @@ function App({ theme }: AppProps) {
 
   // Mirror state in refs so async event handlers always see fresh values.
   const stateRef = useRef({ documentPath, documentContent, documentDirty, documentOpen });
+  const documentFileRef = useRef<InputFile | null>(null);
   stateRef.current = { documentPath, documentContent, documentDirty, documentOpen };
 
   // Native window title reflects current document.
@@ -86,13 +89,27 @@ function App({ theme }: AppProps) {
       defaultPath: stateRef.current.documentPath ?? undefined,
     });
     if (target == null) return false;
+    const file = documentFileRef.current;
+    let content = stateRef.current.documentContent;
+    if (file) {
+      const issues = file.validate();
+      if (issues.length > 0) {
+        await showDialogMessage(
+          "Fix validation errors before saving.",
+          { title: "Cannot save file", kind: "error" },
+        );
+        return false;
+      }
+      content = file.serialize();
+    }
     try {
-      await writeTextFile(target, stateRef.current.documentContent);
+      await writeTextFile(target, content);
     } catch (e) {
       await showDialogMessage(errorMessage(e), { title: "Cannot save file", kind: "error" });
       return false;
     }
     setDocumentPath(target);
+    setDocumentContent(content);
     setDocumentDirty(false);
     try {
       await invoke("add_recent", { path: target });
@@ -106,13 +123,27 @@ function App({ theme }: AppProps) {
   const save = useCallback(async (): Promise<boolean> => {
     const path = stateRef.current.documentPath;
     if (path == null) return saveAs();
+    const file = documentFileRef.current;
+    let content = stateRef.current.documentContent;
+    if (file) {
+      const issues = file.validate();
+      if (issues.length > 0) {
+        await showDialogMessage(
+          "Fix validation errors before saving.",
+          { title: "Cannot save file", kind: "error" },
+        );
+        return false;
+      }
+      content = file.serialize();
+    }
     try {
-      await writeTextFile(path, stateRef.current.documentContent);
+      await writeTextFile(path, content);
     } catch (e) {
       await showDialogMessage(errorMessage(e), { title: "Cannot save file", kind: "error" });
       return false;
     }
     setDocumentDirty(false);
+    setDocumentContent(content);
     return true;
   }, [saveAs]);
 
@@ -136,6 +167,8 @@ function App({ theme }: AppProps) {
     setDocumentContent(content);
     setDocumentDirty(false);
     setDocumentOpen(true);
+    documentFileRef.current = null;
+    setEditorKey((k) => k + 1);
     try {
       await invoke("add_recent", { path });
       setRecentListKey(path);
@@ -150,6 +183,8 @@ function App({ theme }: AppProps) {
     setDocumentContent("");
     setDocumentDirty(false);
     setDocumentOpen(true);
+    documentFileRef.current = null;
+    setEditorKey((k) => k + 1);
   }, [confirmDiscardIfDirty]);
 
   const openDocumentDialog = useCallback(async () => {
@@ -183,6 +218,8 @@ function App({ theme }: AppProps) {
     setDocumentContent("");
     setDocumentDirty(false);
     setDocumentOpen(false);
+    documentFileRef.current = null;
+    setEditorKey((k) => k + 1);
   }, [confirmDiscardIfDirty]);
 
   const handleRequestClose = useCallback(async () => {
@@ -299,27 +336,18 @@ function App({ theme }: AppProps) {
 
   const upgradeBar = <UpgradeNotificationBar />;
 
+  const handleEditorChange = useCallback((file: InputFile) => {
+    documentFileRef.current = file;
+    setDocumentDirty(true);
+  }, []);
+
   const editorBody = documentOpen ? (
-    <div
-      className="editor-area"
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: tokens.spacingVerticalS,
-      }}
-    >
-      <Textarea
-        value={documentContent}
-        onChange={(_, data) => {
-          setDocumentContent(data.value);
-          if (!stateRef.current.documentDirty) setDocumentDirty(true);
-        }}
-        resize="none"
-        textarea={{ style: { minHeight: 0 } }}
-        style={{ flex: 1, minHeight: 0 }}
-        placeholder="Document contents…"
-      />
-    </div>
+    <InputFileEditor
+      key={editorKey}
+      theme={theme}
+      initialText={documentContent}
+      onChange={handleEditorChange}
+    />
   ) : (
     <div className="empty-state-below-bar">
       <p>Use File → New or File → Open File… to begin.</p>

@@ -1,0 +1,35 @@
+page,kind,run,when,branch,title,heading,footing
+1,fixed,,,default,Configuration,,"Select SI (metric) or English units and CN/CA/CP or CL/CD/CP aerodynamic data. Values are stored the same either way; RASOrbit determines units and coefficient type from line 2 of the input file."
+2,fixed,,,default,Aerodynamic Data Notes,,
+2,fixed,,,aero_type=1,,"**Notes on Aerodynamic Data**
+
+For liquid rocket engine or solid rocket motor powered stages, aerodynamic data is power-on aerodynamic data. Power-off delta axial force increment is then added for the coasting phase of flight. Power-off delta axial force increment is assumed constant with angle of attack.
+
+If the stage is unpowered, aerodynamic data is power-off aerodynamic data. Delta axial force increment for power-off is set to zero.",
+2,fixed,,,aero_type=0,,"**Notes on Aerodynamic Data**
+
+For liquid rocket engine or solid rocket motor powered stages, aerodynamic data is power-on aerodynamic data. Power-off delta drag coefficient increment is then added for the coasting phase of flight. Power-off delta axial force increment is assumed constant with angle of attack.
+
+If the stage is unpowered, aerodynamic data is power-off aerodynamic data. Delta drag coefficient increment for power-off is set to zero.",
+3,per_stage,aero,,default,Aerodynamic Data,"Enter angles of attack and Mach numbers, then the normal-force (or lift) coefficient grid.",Mach = rows; angle of attack = columns.
+4,per_stage,aero,,default,Axial Force Coefficient,Enter the axial-force (or drag) coefficient grid.,Mach = rows; angle of attack = columns.
+5,per_stage,aero,,default,Center of Pressure,Enter the center-of-pressure grid.,Mach = rows; angle of attack = columns.
+6,per_stage,aero,,default,Power-Off Delta,Enter power-off delta values versus Mach number. Mach numbers are auto-populated from the aero data on pages 3–5.,
+6,per_stage,aero,,aero_type=1,,,Positive power-off delta axial force coefficient means power-off axial force coefficient is higher than power-on. Power-off delta axial force increment is assumed constant with angle of attack.
+6,per_stage,aero,,aero_type=0,,,"Positive power-off delta drag coefficient means power-off drag coefficient is higher than power-on. Power-off delta drag coefficient is at zero degrees angle of attack, converted to power-off delta axial force coefficient, which is assumed constant with angle of attack."
+7,per_stage,aero,,default,CG and Inertia,"Enter weight breakpoints, center of gravity, and pitch inertia.","If you do not wish to calculate thrust vector angle, enter zeros for CG. The flight simulation will still run; thrust vector angle will be zero.
+
+If you do not wish to calculate time-to-double-amplitude, enter zeros for CG and pitch inertia. The flight simulation will still run; time-to-double-amplitude will not be calculated."
+8,per_stage,aero,,default,Thrust Vectoring,"Enter thrust vectoring gimbal location, percent of thrust for pitch TVC, and maximum thrust vector angle.","If the stage is unpowered, enter zero for thrust vectoring gimbal location, percent of thrust for pitch thrust vectoring, and maximum thrust vector angle.
+
+If you do not wish to calculate thrust vector angle, enter zero for all three TVC fields."
+9,fixed,,,default,Launch Setup,,
+9,fixed,,,launch_mode=1,,"Vertical launch: ground launch from the launch site; 90° pitch attitude, zero initial velocity, vertical lift-off.",
+9,fixed,,,launch_mode=0,,"Conventional flight: any flight condition, including air-launch and starting a stage at any altitude and velocity.",
+10,per_stage,stage_engine,,default,Stage Data,"Enter stage timing, weights, reference area, and engine model.","If engine model type is 0 (no engine), there are no further engine inputs for that stage."
+11,fixed,,any(engine_type>0),default,Engine Time History,Enter engine time history points.,First time must be zero. Last time may be less than total time for the trajectory run.
+11,fixed,,any(engine_type>0),engine_type=1,Chamber Pressure Time History,Enter chamber pressure versus time.,
+11,fixed,,any(engine_type>0),engine_type=2,Thrust Time History,Enter thrust versus time (thrust curve).,
+12,fixed,,,default,Trajectory Control,Enter trajectory control time history points.,First time must be zero.
+12,fixed,,,traj_control=0,Pitch Attitude and Bank Angle Time History,,
+12,fixed,,,traj_control=1,Angle of Attack and Bank Angle Time History,,
