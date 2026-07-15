@@ -4,7 +4,7 @@
   "identifier": "com.jcsw.roinput",
   "build": {
     "beforeDevCommand": "npm run dev",
-    "devUrl": "http://localhost:1420",
+    "devUrl": "http://localhost:1422",
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
@@ -24,6 +24,19 @@
   },
   "bundle": {
     "active": true,
+    "fileAssociations": [
+      {
+        "ext": ["dat"],
+        "name": "RASOrbit Input File",
+        "description": "RASOrbit input file",
+        "mimeType": "text/plain",
+        "role": "Editor",
+        "exportedType": {
+          "identifier": "com.jcsw.roinput.dat",
+          "conformsTo": ["public.plain-text", "public.data"]
+        }
+      }
+    ],
     "targets": "all",
     "publisher": "John Coker <john@jcsw.com>",
     "copyright": "Copyright © 2026 John Coker",

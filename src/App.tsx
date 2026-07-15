@@ -34,6 +34,21 @@ type ConfirmChoice = "save" | "discard" | "cancel";
 
 const APP_TITLE = "RASOrbit Input Editor";
 
+const RASORBIT_INPUT_FILTER = { name: "RASOrbit input", extensions: ["dat"] };
+const OPEN_DAT_FILE_FILTERS = [RASORBIT_INPUT_FILTER];
+const SAVE_FILE_FILTERS = OPEN_DAT_FILE_FILTERS;
+/** Windows supports `*` as an "All files" filter; macOS/Linux do not. */
+const WINDOWS_OPEN_FILE_FILTERS = [
+  ...OPEN_DAT_FILE_FILTERS,
+  { name: "All files", extensions: ["*"] },
+];
+
+/** Append `.dat` when the save dialog returns a path with no extension. */
+function withDatExtension(path: string): string {
+  const name = basename(path);
+  return name.includes(".") ? path : `${path}.dat`;
+}
+
 function App({ theme }: AppProps) {
   const [documentPath, setDocumentPath] = useState<string | null>(null);
   const [documentContent, setDocumentContent] = useState<string>("");
@@ -86,9 +101,11 @@ function App({ theme }: AppProps) {
 
   const saveAs = useCallback(async (): Promise<boolean> => {
     const target = await saveTauriDialog({
-      defaultPath: stateRef.current.documentPath ?? undefined,
+      defaultPath: stateRef.current.documentPath ?? "Untitled.dat",
+      filters: SAVE_FILE_FILTERS,
     });
     if (target == null) return false;
+    const path = withDatExtension(target);
     const file = documentFileRef.current;
     let content = stateRef.current.documentContent;
     if (file) {
@@ -103,17 +120,17 @@ function App({ theme }: AppProps) {
       content = file.serialize();
     }
     try {
-      await writeTextFile(target, content);
+      await writeTextFile(path, content);
     } catch (e) {
       await showDialogMessage(errorMessage(e), { title: "Cannot save file", kind: "error" });
       return false;
     }
-    setDocumentPath(target);
+    setDocumentPath(path);
     setDocumentContent(content);
     setDocumentDirty(false);
     try {
-      await invoke("add_recent", { path: target });
-      setRecentListKey(target);
+      await invoke("add_recent", { path });
+      setRecentListKey(path);
     } catch {
       /* recents are advisory; ignore failures */
     }
@@ -189,7 +206,10 @@ function App({ theme }: AppProps) {
 
   const openDocumentDialog = useCallback(async () => {
     if (!(await confirmDiscardIfDirty())) return;
-    const selected = await openTauriDialog({ multiple: false });
+    const selected = await openTauriDialog({
+      multiple: false,
+      filters: isWindowsPlatform() ? WINDOWS_OPEN_FILE_FILTERS : OPEN_DAT_FILE_FILTERS,
+    });
     if (selected == null) return;
     const path = typeof selected === "string" ? selected : selected[0];
     if (path) await loadFile(path);
