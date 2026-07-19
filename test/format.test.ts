@@ -2,18 +2,21 @@ import { describe, expect, it } from "vitest";
 import { InputFile, formatFloat } from "../src/InputFile";
 import { validFixtures } from "./fixtures";
 
-// formatFloat keeps a decimal point and >= 4 decimals, adds decimals only to preserve
-// precision, and drops them only to fit. The 10-column slot needs the result to be
-// <= 9 chars so a separating space remains (our reader splits on whitespace).
+// formatFloat keeps a decimal point, trims trailing zeros (1.2 not 1.2000), uses at
+// least one decimal (1 → 1.0), adds decimals only to preserve precision, and drops
+// them only to fit the 9-char slot cap.
 describe("formatFloat", () => {
   it.each([
-    [0, "0.0000"],
-    [1.5, "1.5000"],
-    [0.27083, "0.27083"], // extra decimals kept for precision
-    [45000, "45000.000"], // 4th decimal dropped to fit 9 chars
-    [102186.7, "102186.70"], // large thrust: trimmed to fit
-    [-45000, "-45000.00"], // minus sign eats a column
-    [3.14159265, "3.1415927"], // rounded to fit the slot
+    [0, "0.0"],
+    [1, "1.0"],
+    [1.2, "1.2"],
+    [1.5, "1.5"],
+    [385, "385.0"],
+    [0.27083, "0.27083"],
+    [45000, "45000.0"],
+    [102186.7, "102186.7"],
+    [-45000, "-45000.0"],
+    [3.14159265, "3.1415927"],
   ])("formats %p as %p", (input, expected) => {
     expect(formatFloat(input)).toBe(expected);
   });

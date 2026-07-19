@@ -226,23 +226,30 @@ const SLOT = 10;
 const FLOAT_WIDTH = SLOT - 1;
 
 /**
- * Format a float for a 10-column slot: a decimal point is always present, with at
- * least 4 decimals (padded), more only if needed to represent the value exactly,
- * and fewer only when 4 would overflow the slot (e.g. large engine thrusts).
+ * Format a float for a 10-column slot: a decimal point is always present (e.g. 1 → 1.0),
+ * trailing zeros after the decimal are trimmed (1.2 not 1.2000), and extra decimals are kept
+ * only when needed for the value. If the result would exceed 9 characters, decimals are
+ * reduced until it fits (large engine thrusts, etc.).
  */
+function trimTrailingZeros(s: string): string {
+  if (!s.includes(".")) return `${s}.0`;
+  const trimmed = s.replace(/(\.\d*?)0+$/, "$1");
+  return trimmed.endsWith(".") ? `${trimmed}0` : trimmed;
+}
+
 export function formatFloat(x: number): string {
-  let need = SLOT;
-  for (let d = 0; d <= SLOT; d++) {
+  let minDp = 0;
+  for (let d = 0; d <= 15; d++) {
     if (Number(x.toFixed(d)) === x) {
-      need = d;
+      minDp = d;
       break;
     }
   }
-  let dp = Math.max(4, need);
-  let s = x.toFixed(dp);
+  let dp = Math.max(1, minDp);
+  let s = trimTrailingZeros(x.toFixed(dp));
   while (s.length > FLOAT_WIDTH && dp > 1) {
     dp--;
-    s = x.toFixed(dp);
+    s = trimTrailingZeros(x.toFixed(dp));
   }
   return s;
 }
