@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import {
   Field,
   Input,
@@ -11,6 +11,7 @@ import type { InputProps } from "@fluentui/react-components";
 import type { FieldDef } from "./metadata";
 import type { InputFile, Issue } from "./InputFile";
 import {
+  choiceOptions,
   displayLabel,
   fieldHidden,
   fieldReadOnly,
@@ -24,13 +25,40 @@ import {
 } from "./fieldBinding";
 
 const VECTOR_COLS = 8;
-const SPREADSHEET_COL_WIDTH = "5.5rem";
+
+const radioGroupStyle = {
+  display: "flex" as const,
+  flexWrap: "wrap" as const,
+  columnGap: tokens.spacingHorizontalXL,
+  rowGap: tokens.spacingVerticalM,
+};
+
+const spreadsheetTableWrapStyle = {
+  width: "100%",
+  maxWidth: "100%",
+  overflowX: "auto" as const,
+};
 
 const spreadsheetTableStyle = {
   borderCollapse: "collapse" as const,
   tableLayout: "fixed" as const,
-  width: "max-content" as const,
+  width: "100%",
   fontSize: tokens.fontSizeBase300,
+};
+
+const spreadsheetCellOverflow = {
+  overflow: "hidden" as const,
+  textOverflow: "ellipsis" as const,
+  whiteSpace: "nowrap" as const,
+  minWidth: 0,
+};
+
+const spreadsheetRowHeaderCellStyle = {
+  textAlign: "left" as const,
+  padding: tokens.spacingHorizontalXS,
+  border: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke1}`,
+  whiteSpace: "nowrap" as const,
+  width: "0",
 };
 
 const spreadsheetHeaderCellStyle = {
@@ -38,21 +66,27 @@ const spreadsheetHeaderCellStyle = {
   padding: tokens.spacingHorizontalXS,
   fontWeight: tokens.fontWeightSemibold,
   border: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke1}`,
+  ...spreadsheetCellOverflow,
+};
+
+const spreadsheetCornerCellStyle = {
+  ...spreadsheetRowHeaderCellStyle,
+  fontWeight: tokens.fontWeightSemibold,
 };
 
 const spreadsheetBodyCellStyle = {
   padding: 0,
   border: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke1}`,
+  ...spreadsheetCellOverflow,
 };
 
 const spreadsheetLabelCellStyle = {
-  ...spreadsheetBodyCellStyle,
-  padding: tokens.spacingHorizontalXS,
-  textAlign: "left" as const,
+  ...spreadsheetRowHeaderCellStyle,
 };
 
 const spreadsheetInputStyle = {
   width: "100%",
+  minWidth: 0,
   border: "none",
   borderRadius: 0,
   boxShadow: "none",
@@ -64,17 +98,33 @@ const spreadsheetInputProps = {
     style: {
       textAlign: "left" as const,
       paddingInline: tokens.spacingHorizontalXS,
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      minWidth: 0,
     },
   },
 };
 
 function vectorRowChunks(length: number, cols = VECTOR_COLS): number[][] {
+  if (length === 0) return [];
+  if (length <= cols) return [Array.from({ length }, (_, i) => i)];
   const rows: number[][] = [];
   for (let i = 0; i < length; i += cols) {
     const end = Math.min(i + cols, length);
     rows.push(Array.from({ length: end - i }, (_, j) => i + j));
   }
   return rows;
+}
+
+function machColumnLabels(
+  file: InputFile,
+  def: FieldDef,
+  stage?: number,
+): number[] | null {
+  if (stage === undefined) return null;
+  if (def.id === "mach") return null;
+  if (def.count?.rows !== "n_mach" || def.count.cols !== undefined) return null;
+  return readVector(file, "mach", stage);
 }
 
 function issuesForField(
@@ -114,7 +164,6 @@ const fieldShellStyle = {
   maxWidth: "100%",
   minWidth: 0,
   alignSelf: "start" as const,
-  overflow: "hidden" as const,
 };
 
 const columnInputStyle = {
@@ -233,18 +282,20 @@ function ScalarControl({ def, file, stage, issues, onUpdate }: ScalarControlProp
 
   if (fieldHidden(file, def)) return null;
 
-  if (def.type === "choice" && def.options) {
+  const options = choiceOptions(file, def);
+  if (def.type === "choice" && options) {
     const raw = readScalar(file, def.id, stage);
     const value = raw === null ? "" : String(raw);
     return (
       <Field {...fieldProps(file, def, validationState, validationMessage)}>
         <RadioGroup
+          style={radioGroupStyle}
           value={value}
           onChange={(_, data) => {
             onUpdate((f) => writeScalar(f, def.id, Number(data.value), stage));
           }}
         >
-          {def.options.map((opt) => (
+          {options.map((opt) => (
             <Radio key={opt.value} value={String(opt.value)} label={opt.label} />
           ))}
         </RadioGroup>
@@ -301,18 +352,13 @@ function VectorControl({ def, file, stage, issues, onUpdate }: VectorControlProp
   const values = readVector(file, def.id, stage);
   const fieldIssues = issuesForField(issues, def.id, stage);
   const { message: validationMessage, state: validationState } = fieldValidation(fieldIssues);
-  const machKeyed =
-    stage !== undefined && def.count?.rows === "n_mach" && def.count.cols === undefined;
-  const mach = machKeyed ? readVector(file, "mach", stage) : [];
+  const machLabels = machColumnLabels(file, def, stage);
   const label = displayLabel(file, def);
-  const rows = vectorRowChunks(values.length);
-  const colCount = machKeyed
-    ? mach.length
-    : rows.length > 0
-      ? Math.max(...rows.map((row) => row.length))
-      : 1;
+  // Mach count tops out at 15 — keep on one row. Other vectors wrap at 8 (with headers per band when needed).
+  const chunkCols = def.id === "mach" ? Math.max(values.length, 1) : VECTOR_COLS;
+  const rows = vectorRowChunks(values.length, chunkCols);
 
-  if (machKeyed && mach.length === 0) {
+  if (machLabels !== null && machLabels.length === 0) {
     return (
       <Field {...fieldProps(file, def, validationState, validationMessage)}>
         <Text block style={{ color: tokens.colorNeutralForeground3 }}>
@@ -324,49 +370,51 @@ function VectorControl({ def, file, stage, issues, onUpdate }: VectorControlProp
 
   return (
     <Field {...fieldProps(file, def, validationState, validationMessage)}>
-      <table style={spreadsheetTableStyle}>
-          <colgroup>
-            {Array.from({ length: colCount }, (_, ci) => (
-              <col key={ci} style={{ width: SPREADSHEET_COL_WIDTH }} />
-            ))}
-          </colgroup>
-          {machKeyed ? (
-            <thead>
-              <tr>
-                {mach.map((m, ci) => (
-                  <th key={ci} style={spreadsheetHeaderCellStyle}>
-                    {m}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-          ) : null}
+      <div style={spreadsheetTableWrapStyle}>
+        <table style={spreadsheetTableStyle}>
           <tbody>
             {rows.map((indices) => (
-              <tr key={indices[0]}>
-                {indices.map((index) => (
-                  <td key={index} style={spreadsheetBodyCellStyle}>
-                    <EditableNumericInput
-                      {...spreadsheetInputProps}
-                      value={String(values[index])}
-                      inputMode="decimal"
-                      aria-label={`${label} ${index + 1}`}
-                      aria-invalid={
-                        fieldValidation(issuesForField(issues, def.id, stage, index)).state !==
-                        "none"
-                      }
-                      onCommit={(raw) => {
-                        onUpdate((f) =>
-                          writeVectorElement(f, def.id, index, raw, stage),
-                        );
-                      }}
-                    />
-                  </td>
-                ))}
-              </tr>
+              <Fragment key={indices[0]}>
+                {machLabels !== null ? (
+                  <tr>
+                    {indices.map((index) => (
+                      <th
+                        key={index}
+                        style={spreadsheetHeaderCellStyle}
+                        title={formatScalarValue(machLabels[index], def)}
+                      >
+                        {formatScalarValue(machLabels[index], def)}
+                      </th>
+                    ))}
+                  </tr>
+                ) : null}
+                <tr>
+                  {indices.map((index) => (
+                    <td key={index} style={spreadsheetBodyCellStyle}>
+                      <EditableNumericInput
+                        {...spreadsheetInputProps}
+                        value={formatScalarValue(values[index], def)}
+                        inputMode="decimal"
+                        title={formatScalarValue(values[index], def)}
+                        aria-label={`${label} ${index + 1}`}
+                        aria-invalid={
+                          fieldValidation(issuesForField(issues, def.id, stage, index))
+                            .state !== "none"
+                        }
+                        onCommit={(raw) => {
+                          onUpdate((f) =>
+                            writeVectorElement(f, def.id, index, raw, stage),
+                          );
+                        }}
+                      />
+                    </td>
+                  ))}
+                </tr>
+              </Fragment>
             ))}
           </tbody>
         </table>
+      </div>
     </Field>
   );
 }
@@ -397,19 +445,14 @@ function MatrixControl({ def, file, stage, issues, onUpdate }: MatrixControlProp
 
   return (
     <Field {...fieldProps(file, def, validationState, validationMessage)}>
-      <table style={spreadsheetTableStyle}>
-        <colgroup>
-          <col style={{ width: "3.5rem" }} />
-            {aoa.map((_, ci) => (
-              <col key={ci} style={{ width: SPREADSHEET_COL_WIDTH }} />
-            ))}
-          </colgroup>
+      <div style={spreadsheetTableWrapStyle}>
+        <table style={spreadsheetTableStyle}>
           <thead>
             <tr>
-              <th style={spreadsheetHeaderCellStyle}>Mach</th>
+              <th style={spreadsheetCornerCellStyle} aria-hidden="true" />
               {aoa.map((a, ci) => (
-                <th key={ci} style={spreadsheetHeaderCellStyle}>
-                  {a}
+                <th key={ci} style={spreadsheetHeaderCellStyle} title={formatScalarValue(a, def)}>
+                  {formatScalarValue(a, def)}
                 </th>
               ))}
             </tr>
@@ -417,13 +460,19 @@ function MatrixControl({ def, file, stage, issues, onUpdate }: MatrixControlProp
           <tbody>
             {matrix.map((row, ri) => (
               <tr key={ri}>
-                <td style={spreadsheetLabelCellStyle}>{mach[ri] ?? ri}</td>
+                <td
+                  style={spreadsheetLabelCellStyle}
+                  title={formatScalarValue(mach[ri] ?? ri, def)}
+                >
+                  {formatScalarValue(mach[ri] ?? ri, def)}
+                </td>
                 {row.map((cell, ci) => (
                   <td key={ci} style={spreadsheetBodyCellStyle}>
                     <EditableNumericInput
                       {...spreadsheetInputProps}
-                      value={String(cell)}
+                      value={formatScalarValue(cell, def)}
                       inputMode="decimal"
+                      title={formatScalarValue(cell, def)}
                       aria-label={`${displayLabel(file, def)} row ${ri + 1} col ${ci + 1}`}
                       onCommit={(raw) => {
                         onUpdate((f) =>
@@ -437,6 +486,7 @@ function MatrixControl({ def, file, stage, issues, onUpdate }: MatrixControlProp
             ))}
           </tbody>
         </table>
+      </div>
     </Field>
   );
 }

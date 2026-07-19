@@ -7,8 +7,59 @@ import { parseCsv } from "./csv";
 export type PageKind = "fixed" | "per_stage";
 export type PageRun = "aero" | "stage_engine";
 
+/** Stable page keys — primary identity for nav, field placement, and copy. */
+export const PAGE_IDS = [
+  "configuration",
+  "aero_notes",
+  "aero_data",
+  "normal_force_coef",
+  "axial_force_coef",
+  "center_of_pressure",
+  "power_off_delta",
+  "cg_and_inertia",
+  "thrust_vectoring",
+  "launch_setup",
+  "stage_data",
+  "engine_time_history",
+  "trajectory_control",
+] as const;
+
+export type PageId = (typeof PAGE_IDS)[number];
+
+/** Per-stage aero run pages, in nav order. */
+export const AERO_PAGE_IDS = [
+  "aero_data",
+  "normal_force_coef",
+  "axial_force_coef",
+  "center_of_pressure",
+  "power_off_delta",
+  "cg_and_inertia",
+  "thrust_vectoring",
+] as const satisfies readonly PageId[];
+
+export const STAGE_ENGINE_PAGE_ID = "stage_data" satisfies PageId;
+
+/** Fixed pages before per-stage branches. */
+export const FIXED_ROOT_PAGE_IDS = ["configuration", "aero_notes"] as const satisfies readonly PageId[];
+
+/** Fixed pages after per-stage branches. */
+export const FIXED_TAIL_PAGE_IDS = [
+  "launch_setup",
+  "engine_time_history",
+  "trajectory_control",
+] as const satisfies readonly PageId[];
+
+/** Per-stage pages whose grids/vectors are keyed by Aerodynamic Data Mach/AoA breakpoints. */
+export const AERO_BREAKPOINT_DEPENDENT_PAGE_IDS = new Set<PageId>([
+  "normal_force_coef",
+  "axial_force_coef",
+  "center_of_pressure",
+  "power_off_delta",
+]);
+
 export interface PageRow {
-  page: number;
+  id: PageId;
+  ordinal?: number;
   kind: PageKind;
   run?: PageRun;
   when?: string;
@@ -19,7 +70,7 @@ export interface PageRow {
 }
 
 export interface ResolvedPageCopy {
-  page: number;
+  id: PageId;
   title: string;
   heading: string;
   footing: string;
@@ -32,6 +83,15 @@ interface BranchContext {
   trajControl: TrajControl;
 }
 
+const PAGE_ID_SET = new Set<string>(PAGE_IDS);
+
+function assertPageId(id: string): PageId {
+  if (!PAGE_ID_SET.has(id)) {
+    throw new Error(`pages.csv unknown page id "${id}"`);
+  }
+  return id as PageId;
+}
+
 function loadPages(): PageRow[] {
   const rows = parseCsv(pagesRaw);
   const header = rows[0];
@@ -40,7 +100,8 @@ function loadPages(): PageRow[] {
     if (i < 0) throw new Error(`pages.csv missing column "${name}"`);
     return i;
   };
-  const cPage = idx("page");
+  const cId = idx("id");
+  const cOrdinal = header.includes("ordinal") ? idx("ordinal") : -1;
   const cKind = idx("kind");
   const cRun = idx("run");
   const cWhen = idx("when");
@@ -52,8 +113,10 @@ function loadPages(): PageRow[] {
   return rows.slice(1).map((r) => {
     const kind = r[cKind].trim() as PageKind;
     const runRaw = r[cRun]?.trim();
+    const ordinalRaw = cOrdinal >= 0 ? r[cOrdinal]?.trim() : "";
     return {
-      page: Number(r[cPage]),
+      id: assertPageId(r[cId].trim()),
+      ordinal: ordinalRaw ? Number(ordinalRaw) : undefined,
       kind,
       run: runRaw ? (runRaw as PageRun) : undefined,
       when: r[cWhen]?.trim() || undefined,
@@ -66,11 +129,6 @@ function loadPages(): PageRow[] {
 }
 
 export const pageRows: PageRow[] = loadPages();
-
-/** Distinct page numbers that have metadata, in ascending order. */
-export const pageNumbers: number[] = [
-  ...new Set(pageRows.map((r) => r.page)),
-].sort((a, b) => a - b);
 
 function primaryEngineType(file: InputFile): 0 | 1 | 2 {
   const stage = file.stages.find((s) => s.engine.kind !== "none");
@@ -114,13 +172,13 @@ export function pageWhenVisible(when: string | undefined, file: InputFile): bool
   return true;
 }
 
-function rowsForPage(page: number): PageRow[] {
-  return pageRows.filter((r) => r.page === page);
+function rowsForPage(id: PageId): PageRow[] {
+  return pageRows.filter((r) => r.id === id);
 }
 
 /** Best title/heading/footing for a page, merging default + branch rows. */
-export function resolvePageCopy(page: number, file: InputFile): ResolvedPageCopy | null {
-  const rows = rowsForPage(page);
+export function resolvePageCopy(id: PageId, file: InputFile): ResolvedPageCopy | null {
+  const rows = rowsForPage(id);
   if (rows.length === 0) return null;
   const visible = rows.filter((r) => pageWhenVisible(r.when, file));
   if (visible.length === 0) return null;
@@ -139,9 +197,13 @@ export function resolvePageCopy(page: number, file: InputFile): ResolvedPageCopy
     if (row.footing) footing = row.footing;
   }
 
-  return { page, title, heading, footing };
+  return { id, title, heading, footing };
 }
 
-export function pageMeta(page: number): PageRow | undefined {
-  return pageRows.find((r) => r.page === page && r.branch === "default");
+export function pageMeta(id: PageId): PageRow | undefined {
+  return pageRows.find((r) => r.id === id && r.branch === "default");
+}
+
+export function navLeafId(id: PageId, stage?: number): string {
+  return stage === undefined ? id : `${id}-s${stage}`;
 }

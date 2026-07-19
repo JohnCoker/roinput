@@ -2,14 +2,26 @@
 
 import { fields, type FieldDef, type WhenCondition } from "./metadata";
 import type { InputFile, Issue, Stage } from "./InputFile";
-import { pageMeta, pageWhenVisible, resolvePageCopy, type PageRun } from "./pages";
+import {
+  AERO_BREAKPOINT_DEPENDENT_PAGE_IDS,
+  AERO_PAGE_IDS,
+  FIXED_ROOT_PAGE_IDS,
+  FIXED_TAIL_PAGE_IDS,
+  navLeafId,
+  pageMeta,
+  pageWhenVisible,
+  resolvePageCopy,
+  STAGE_ENGINE_PAGE_ID,
+  type PageId,
+  type PageRun,
+} from "./pages";
 
 export type NodeStatus = "complete" | "incomplete" | "error";
 
 export interface NavLeaf {
   kind: "leaf";
   id: string;
-  page: number;
+  pageId: PageId;
   stage?: number;
   label: string;
   status: NodeStatus;
@@ -25,10 +37,6 @@ export interface NavBranch {
 
 export type NavNode = NavLeaf | NavBranch;
 
-const AERO_PAGES = [3, 4, 5, 6, 7, 8] as const;
-const STAGE_ENGINE_PAGE = 10;
-/** Per-stage pages whose grids/vectors are keyed by page-3 Mach/AoA breakpoints. */
-const AERO_BREAKPOINT_DEPENDENT_PAGES = new Set([4, 5, 6]);
 const AERO_BREAKPOINT_FIELDS = new Set(["aoa", "mach", "n_aoa", "n_mach"]);
 
 function stageEngineType(stage: Stage): 0 | 1 | 2 {
@@ -80,18 +88,18 @@ export function fieldVisible(file: InputFile, def: FieldDef, stage?: number): bo
   return evalWhen(def.when, file, def.perStage ? stage : undefined);
 }
 
-function fieldsOnPage(page: number, stage?: number): FieldDef[] {
+function fieldsOnPage(pageId: PageId, stage?: number): FieldDef[] {
   return fields.filter((f) => {
-    if (f.page !== page) return false;
+    if (f.pageId !== pageId) return false;
     if (f.perStage && stage === undefined) return false;
     if (!f.perStage && stage !== undefined) return false;
     return true;
   });
 }
 
-function issueApplies(issue: Issue, page: number, stage?: number): boolean {
+function issueApplies(issue: Issue, pageId: PageId, stage?: number): boolean {
   const def = fields.find((f) => f.id === issue.fieldId);
-  if (!def || def.page !== page) return false;
+  if (!def || def.pageId !== pageId) return false;
   if (def.perStage) {
     if (stage === undefined) return false;
     return issue.stage === stage;
@@ -121,47 +129,52 @@ function aeroBreakpointIssues(issues: Issue[], stage: number): Issue[] {
   );
 }
 
-function leafStatus(file: InputFile, page: number, stage: number | undefined, issues: Issue[]): NodeStatus {
-  const when = pageMeta(page)?.when;
+function leafStatus(
+  file: InputFile,
+  pageId: PageId,
+  stage: number | undefined,
+  issues: Issue[],
+): NodeStatus {
+  const when = pageMeta(pageId)?.when;
   if (!pageWhenVisible(when, file)) return "complete";
 
-  const pageFields = fieldsOnPage(page, stage).filter((f) => fieldVisible(file, f, stage));
+  const pageFields = fieldsOnPage(pageId, stage).filter((f) => fieldVisible(file, f, stage));
   if (pageFields.length === 0) return "complete";
 
-  const scoped = issues.filter((i) => issueApplies(i, page, stage));
-  if (stage !== undefined && AERO_BREAKPOINT_DEPENDENT_PAGES.has(page)) {
+  const scoped = issues.filter((i) => issueApplies(i, pageId, stage));
+  if (stage !== undefined && AERO_BREAKPOINT_DEPENDENT_PAGE_IDS.has(pageId)) {
     scoped.push(...aeroBreakpointIssues(issues, stage));
   }
   return statusFromIssues(scoped);
 }
 
-function leafLabel(page: number, file: InputFile): string {
-  const copy = resolvePageCopy(page, file);
-  const base = copy?.title || pageMeta(page)?.title || `Page ${page}`;
+function leafLabel(pageId: PageId, file: InputFile): string {
+  const copy = resolvePageCopy(pageId, file);
+  const base = copy?.title || pageMeta(pageId)?.title || pageId;
   return base;
 }
 
 function stageBranch(file: InputFile, stage: number, issues: Issue[]): NavBranch {
   const children: NavLeaf[] = [];
 
-  for (const page of AERO_PAGES) {
+  for (const pageId of AERO_PAGE_IDS) {
     children.push({
       kind: "leaf",
-      id: `p${page}-s${stage}`,
-      page,
+      id: navLeafId(pageId, stage),
+      pageId,
       stage,
-      label: leafLabel(page, file),
-      status: leafStatus(file, page, stage, issues),
+      label: leafLabel(pageId, file),
+      status: leafStatus(file, pageId, stage, issues),
     });
   }
 
   children.push({
     kind: "leaf",
-    id: `p${STAGE_ENGINE_PAGE}-s${stage}`,
-    page: STAGE_ENGINE_PAGE,
+    id: navLeafId(STAGE_ENGINE_PAGE_ID, stage),
+    pageId: STAGE_ENGINE_PAGE_ID,
     stage,
-    label: leafLabel(STAGE_ENGINE_PAGE, file),
-    status: leafStatus(file, STAGE_ENGINE_PAGE, stage, issues),
+    label: leafLabel(STAGE_ENGINE_PAGE_ID, file),
+    status: leafStatus(file, STAGE_ENGINE_PAGE_ID, stage, issues),
   });
 
   return {
@@ -173,15 +186,15 @@ function stageBranch(file: InputFile, stage: number, issues: Issue[]): NavBranch
   };
 }
 
-function fixedLeaf(file: InputFile, page: number, issues: Issue[]): NavLeaf | null {
-  const when = pageMeta(page)?.when;
+function fixedLeaf(file: InputFile, pageId: PageId, issues: Issue[]): NavLeaf | null {
+  const when = pageMeta(pageId)?.when;
   if (!pageWhenVisible(when, file)) return null;
   return {
     kind: "leaf",
-    id: `p${page}`,
-    page,
-    label: leafLabel(page, file),
-    status: leafStatus(file, page, undefined, issues),
+    id: navLeafId(pageId),
+    pageId,
+    label: leafLabel(pageId, file),
+    status: leafStatus(file, pageId, undefined, issues),
   };
 }
 
@@ -189,24 +202,20 @@ function fixedLeaf(file: InputFile, page: number, issues: Issue[]): NavLeaf | nu
 export function buildNavTree(file: InputFile, issues: Issue[]): NavNode[] {
   const nodes: NavNode[] = [];
 
-  const p1 = fixedLeaf(file, 1, issues);
-  const p2 = fixedLeaf(file, 2, issues);
-  if (p1) nodes.push(p1);
-  if (p2) nodes.push(p2);
+  for (const pageId of FIXED_ROOT_PAGE_IDS) {
+    const leaf = fixedLeaf(file, pageId, issues);
+    if (leaf) nodes.push(leaf);
+  }
 
   const nStages = file.stages.length;
   if (nStages > 0) {
     nodes.push(...Array.from({ length: nStages }, (_, i) => stageBranch(file, i + 1, issues)));
   }
 
-  const p9 = fixedLeaf(file, 9, issues);
-  if (p9) nodes.push(p9);
-
-  const p11 = fixedLeaf(file, 11, issues);
-  if (p11) nodes.push(p11);
-
-  const p12 = fixedLeaf(file, 12, issues);
-  if (p12) nodes.push(p12);
+  for (const pageId of FIXED_TAIL_PAGE_IDS) {
+    const leaf = fixedLeaf(file, pageId, issues);
+    if (leaf) nodes.push(leaf);
+  }
 
   return nodes;
 }
@@ -233,6 +242,6 @@ export function firstLeaf(nodes: NavNode[]): NavLeaf | undefined {
   return undefined;
 }
 
-export function runForPage(page: number): PageRun | undefined {
-  return pageMeta(page)?.run;
+export function runForPage(pageId: PageId): PageRun | undefined {
+  return pageMeta(pageId)?.run;
 }

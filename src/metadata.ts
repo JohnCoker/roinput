@@ -7,7 +7,18 @@
 // share them without duplicating the limits.
 
 import csvRaw from "../metadata/fields.csv?raw";
+import type { PageId } from "./pages";
+import { PAGE_IDS } from "./pages";
 import { parseCsv } from "./csv";
+
+const PAGE_ID_SET = new Set<string>(PAGE_IDS);
+
+function assertPageId(id: string): PageId {
+  if (!PAGE_ID_SET.has(id)) {
+    throw new Error(`fields.csv unknown page_id "${id}"`);
+  }
+  return id as PageId;
+}
 
 export type Kind = "scalar" | "vector" | "matrix";
 export type FieldType = "text" | "int" | "float" | "choice";
@@ -49,7 +60,7 @@ export interface FieldDef {
   min?: number;
   max?: number;
   step?: number;
-  page?: number;
+  pageId?: PageId;
   group: string;
   validate: string;
   options?: ChoiceOption[];
@@ -129,7 +140,7 @@ function loadFields(): FieldDef[] {
   const cMin = idx("min");
   const cMax = idx("max");
   const cStep = idx("step");
-  const cPage = idx("page");
+  const cPageId = idx("page_id");
   const cGroup = idx("group");
   const cValidate = idx("validate");
 
@@ -149,7 +160,7 @@ function loadFields(): FieldDef[] {
       min: num(r[cMin] ?? ""),
       max: num(r[cMax] ?? ""),
       step: num(r[cStep] ?? ""),
-      page: num(r[cPage] ?? ""),
+      pageId: r[cPageId]?.trim() ? assertPageId(r[cPageId].trim()) : undefined,
       group: r[cGroup] ?? "",
       validate: r[cValidate] ?? "",
       options: parseOptions(control),

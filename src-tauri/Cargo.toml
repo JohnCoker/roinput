@@ -1,6 +1,6 @@
 [package]
 name = "roinput"
-version = "0.1.0"
+version = "0.2.0"
 description = "RASOrbit Input Editor is a desktop app for editing RASOrbit input files."
 authors = ["John Coker <john@jcsw.com>"]
 edition = "2021"

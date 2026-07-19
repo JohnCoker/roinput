@@ -16,8 +16,8 @@ interface PagePanelProps {
 }
 
 export function PagePanel({ file, selection, issues, onUpdate }: PagePanelProps) {
-  const copy = resolvePageCopy(selection.page, file);
-  const title = copy?.title ?? `Page ${selection.page}`;
+  const copy = resolvePageCopy(selection.pageId, file);
+  const title = copy?.title ?? selection.pageId;
   const heading = copy?.heading ?? "";
   const footing = copy?.footing ?? "";
 

@@ -1,64 +1,64 @@
-id,label,kind,type,count,per_stage,when,line,control,min,max,step,page,group,validate
-title,Title,scalar,text,,,,,text,,,,1,,
-n_stages,Number of Stages,scalar,int,,,,,number,1,4,1,1,Configuration,
-units,Units,scalar,choice,,,,same,"radio:SI=0,English=1",,,,1,Configuration,
-aero_type,Aerodynamic Data,scalar,choice,,,,same,"radio:CL/CD/CP=0,CN/CA/CP=1",,,,1,Configuration,
-n_aoa,Number of Angles of Attack,scalar,int,,stage,,,number,3,8,1,3,Aerodynamic Data,
-aoa,Angles of Attack,vector,float,n_aoa,stage,,,number,-99,99,0.0001,3,Aerodynamic Data,values must be unique
-n_mach,Number of Mach Numbers,scalar,int,,stage,,,number,2,15,1,3,Aerodynamic Data,
-mach,Mach Numbers,vector,float,n_mach,stage,,,number,0,99,0.0001,3,Aerodynamic Data,values must be unique
-cn,Normal Force Coefficient (CN),matrix,float,n_mach x n_aoa,stage,,,grid,-99,99,0.0001,3,Aerodynamic Data,
-ca,Axial Force Coefficient (CA),matrix,float,n_mach x n_aoa,stage,,,grid,-99,99,0.0001,4,Aerodynamic Data,
-cp,Center of Pressure (CP),matrix,float,n_mach x n_aoa,stage,,,grid,-9999,9999,0.0001,5,Aerodynamic Data,
-dca_off,Power-Off Delta Axial Force Coefficient,vector,float,n_mach,stage,,,number,-99,99,0.0001,6,Aerodynamic Data,
-n_weight,Number of Weight Points,scalar,int,,stage,,,number,2,10,1,7,CG and Inertia,
-weight,Weight,vector,float,n_weight,stage,,,number,0,,0.0001,7,CG and Inertia,
-cg,Center of Gravity (CG),vector,float,n_weight,stage,,,number,0,,0.0001,7,CG and Inertia,
-inertia,Pitch Inertia,vector,float,n_weight,stage,,,number,0,,0.0001,7,CG and Inertia,
-tvc_gimbal,Thrust Vectoring Gimbal Location,scalar,float,,stage,,,number,0,,0.0001,8,Thrust Vectoring,
-tvc_percent,Percent of Thrust for Pitch TVC,scalar,float,,stage,,same,number,0,1,0.01,8,Thrust Vectoring,
-tvc_maxangle,Maximum Thrust Vector Angle,scalar,float,,stage,,same,number,0,90,0.0001,8,Thrust Vectoring,
-launch_mode,Launch Mode,scalar,choice,,,,,"radio:Conventional Flight=0,Vertical Launch=1",,,,9,Launch,
-launch_azimuth,Launch Azimuth,scalar,float,,,,same,number,0,359.9999,0.0001,9,Launch,no negatives; 360 not allowed (enter as 0); label Initial Heading when Conventional
-nose_heating_model,Nose Stagnation Heating Model,scalar,choice,,,,same,"radio:No=0,Yes=1",,,,9,Launch,
-nose_radius,Nose Radius,scalar,float,,,,same,number,0,,0.0001,9,Launch,enter 0 if heating model = No
-initial_altitude,Initial Altitude,scalar,float,,,,,number,0,,0.0001,9,Initial Conditions,not negative
-initial_velocity,Initial Velocity,scalar,float,,,,same,number,0,,0.0001,9,Initial Conditions,not negative
-geodetic_latitude,Geodetic Latitude,scalar,float,,,,same,number,-90,90,0.0001,9,Initial Conditions,
-longitude,Longitude,scalar,float,,,,same,number,-180,180,0.0001,9,Initial Conditions,geodetic ±180 (distinct from azimuth 0-360)
-initial_pitch,Initial Pitch Attitude,scalar,float,,,,same,number,-90,90,0.0001,9,Initial Conditions,autofill 90 if Vertical Launch
-initial_heading_azimuth,Initial Heading/Azimuth,scalar,float,,,,same,number,0,359.9999,0.0001,9,Initial Conditions,always = launch_azimuth; read-only derived (not editable)
-initial_bank,Initial Bank (Roll) Angle,scalar,float,,,,same,number,-90,90,0.0001,9,Initial Conditions,autofill 0 if Vertical Launch
-initial_aoa,Initial Angle of Attack,scalar,float,,,,same,number,-90,90,0.0001,9,Initial Conditions,autofill 0 if Vertical Launch
-integration_time_step,Integration Time Step,scalar,float,,,,,number,0,,0.0001,9,Integration,not zero; not negative
-total_time,Total Time for Trajectory Run,scalar,float,,,,same,number,0,10000,0.0001,9,Integration,not negative
-printout_rate,Printout Output Rate,scalar,float,,,,same,number,0,,0.0001,9,Integration,not zero; >= integration_time_step
-stage_start_time,Stage Start Time,scalar,float,,stage,,,number,0,,0.0001,10,Stage Data,not negative
-aero_ref_area,Stage Aerodynamic Reference Area,scalar,float,,stage,,same,number,0,,0.0001,10,Stage Data,not negative
-stage_initial_weight,Stage Initial Weight,scalar,float,,stage,,same,number,0,,0.0001,10,Stage Data,not negative
-stage_burnout_weight,Stage Burnout Weight,scalar,float,,stage,,same,number,0,,0.0001,10,Stage Data,not negative
-engine_type,Rocket Engine Model Type,scalar,choice,,stage,,same,"radio:No Engine=0,Chamber Pressure=1,Thrust Time History=2",,,,10,Stage Data,integer 0/1/2
-throat_area,Throat Area,scalar,float,,stage,engine_type==1,,number,0,,0.0001,10,Rocket Engine (Chamber Pressure),
-nozzle_expansion_ratio,Nozzle Expansion Ratio,scalar,float,,stage,engine_type==1,same,number,0,,0.0001,10,Rocket Engine (Chamber Pressure),
-nozzle_divergence_half_angle,Nozzle Divergence Half Angle,scalar,float,,stage,engine_type==1,same,number,0,,0.0001,10,Rocket Engine (Chamber Pressure),
-chp_burn_time,Burn Time,scalar,float,,stage,engine_type==1,same,number,0,,0.0001,10,Rocket Engine (Chamber Pressure),
-ref_thrust,Reference Thrust,scalar,float,,stage,engine_type==1,same,number,0,,0.0001,10,Rocket Engine (Chamber Pressure),
-ref_specific_impulse,Reference Specific Impulse,scalar,float,,stage,engine_type==1,same,number,0,,0.0001,10,Rocket Engine (Chamber Pressure),
-ref_chamber_pressure,Reference Chamber Pressure,scalar,float,,stage,engine_type==1,same,number,0,,0.0001,10,Rocket Engine (Chamber Pressure),
-ref_atm_pressure,Reference Atmospheric Pressure,scalar,float,,stage,engine_type==1,same,number,0,,0.0001,10,Rocket Engine (Chamber Pressure),
-ratio_specific_heats,Ratio of Specific Heats,scalar,float,,stage,engine_type==1,,number,0,,0.0001,10,Rocket Engine (Chamber Pressure),
-thrust_coeff_ratio,Thrust Coefficient Ratio,scalar,float,,stage,engine_type==1,same,number,0,,0.0001,10,Rocket Engine (Chamber Pressure),
-nozzle_type,Nozzle Type,scalar,choice,,stage,engine_type==1,same,"radio:Conical=1,Bell=2",,,,10,Rocket Engine (Chamber Pressure),
-negative_thrust,Negative Thrust,scalar,choice,,stage,engine_type==1,same,"radio:Positive Thrust=0,Negative Thrust=1",,,,10,Rocket Engine (Chamber Pressure),
-tth_burn_time,Burn Time,scalar,float,,stage,engine_type==2,,number,0,,0.0001,10,Rocket Engine (Thrust History),
-nozzle_exit_area,Nozzle Exit Area,scalar,float,,stage,engine_type==2,same,number,0,,0.0001,10,Rocket Engine (Thrust History),
-tth_ref_atm_pressure,Reference Atmospheric Pressure,scalar,float,,stage,engine_type==2,same,number,0,,0.0001,10,Rocket Engine (Thrust History),
-tth_negative_thrust,Negative Thrust,scalar,choice,,stage,engine_type==2,same,"radio:Positive Thrust=0,Negative Thrust=1",,,,10,Rocket Engine (Thrust History),
-n_history,Number of Time History Points,scalar,int,,,any(engine_type>0),,number,2,40,1,11,Engine Time History,present only if a stage is powered (engine_type 1 or 2); label matches engine model
-history_time,Time,vector,float,n_history,,any(engine_type>0),,number,0,,0.0001,11,Engine Time History,first time must be 0; last time may be less than total_time; no negatives; values must be unique
-history_value,Chamber Pressure / Thrust,vector,float,n_history,,any(engine_type>0),,number,0,,0.0001,11,Engine Time History,units Chamber Pressure (type 1) or Thrust (type 2); no negatives
-n_traj,Number of Trajectory Time History Points,scalar,int,,,,,number,2,40,1,12,Trajectory Control,
-traj_control,Trajectory Control,scalar,choice,,,,same,"radio:Pitch Attitude and Bank=0,Angle of Attack and Bank=1",,,,12,Trajectory Control,
-traj_time,Time,vector,float,n_traj,,,,number,0,,0.0001,12,Trajectory Control,first time must be 0; no negatives; values must be unique
-traj_angle,Angle of Attack / Pitch Attitude,vector,float,n_traj,,,,number,-90,90,0.0001,12,Trajectory Control,label Angle of Attack (control 1) or Pitch Attitude (control 0)
-traj_bank,Bank (Roll) Angle,vector,float,n_traj,,,,number,-90,90,0.0001,12,Trajectory Control,
+id,label,kind,type,count,per_stage,when,line,control,min,max,step,page_id,group,validate
+title,Title,scalar,text,,,,,text,,,,configuration,,
+n_stages,Number of Stages,scalar,int,,,,,number,1,4,1,configuration,Configuration,
+units,Units,scalar,choice,,,,same,"radio:SI (Metric)=0,English=1",,,,configuration,Configuration,
+aero_type,Aerodynamic Data,scalar,choice,,,,same,"radio:CL/CD/CP=0,CN/CA/CP=1",,,,configuration,Configuration,
+n_aoa,Number of Angles of Attack,scalar,int,,stage,,,number,3,8,1,aero_data,Aerodynamic Data,
+aoa,Angles of Attack,vector,float,n_aoa,stage,,,number,-99,99,0.0001,aero_data,Aerodynamic Data,values must be unique
+n_mach,Number of Mach Numbers,scalar,int,,stage,,,number,2,15,1,aero_data,Aerodynamic Data,
+mach,Mach Numbers,vector,float,n_mach,stage,,,number,0,99,0.0001,aero_data,Aerodynamic Data,values must be unique
+cn,Normal Force Coefficient (CN),matrix,float,n_mach x n_aoa,stage,,,grid,-99,99,0.0001,normal_force_coef,Aerodynamic Data,
+ca,Axial Force Coefficient (CA),matrix,float,n_mach x n_aoa,stage,,,grid,-99,99,0.0001,axial_force_coef,Aerodynamic Data,
+cp,Center of Pressure (CP),matrix,float,n_mach x n_aoa,stage,,,grid,-9999,9999,0.0001,center_of_pressure,Aerodynamic Data,
+dca_off,Power-Off Delta Axial Force Coefficient,vector,float,n_mach,stage,,,number,-99,99,0.0001,power_off_delta,Aerodynamic Data,
+n_weight,Number of Weight Points,scalar,int,,stage,,,number,2,10,1,cg_and_inertia,CG and Inertia,
+weight,Weight,vector,float,n_weight,stage,,,number,0,,0.0001,cg_and_inertia,CG and Inertia,
+cg,Center of Gravity (CG),vector,float,n_weight,stage,,,number,0,,0.0001,cg_and_inertia,CG and Inertia,
+inertia,Pitch Inertia,vector,float,n_weight,stage,,,number,0,,0.0001,cg_and_inertia,CG and Inertia,
+tvc_gimbal,Thrust Vectoring Gimbal Location,scalar,float,,stage,,,number,0,,0.0001,thrust_vectoring,Thrust Vectoring,
+tvc_percent,Percent of Thrust for Pitch Thrust Vectoring,scalar,float,,stage,,same,number,0,1,0.01,thrust_vectoring,Thrust Vectoring,
+tvc_maxangle,Maximum Thrust Vector Angle,scalar,float,,stage,,same,number,0,90,0.0001,thrust_vectoring,Thrust Vectoring,
+launch_mode,Launch Mode,scalar,choice,,,,,"radio:Conventional Flight=0,Vertical Launch=1",,,,launch_setup,Launch,
+launch_azimuth,Launch Azimuth,scalar,float,,,,same,number,0,359.9999,0.0001,launch_setup,Launch,no negatives; 360 not allowed (enter as 0); label Initial Heading when Conventional
+nose_heating_model,Nose Stagnation Heating Model,scalar,choice,,,,same,"radio:No=0,Yes=1",,,,launch_setup,Launch,
+nose_radius,Nose Radius,scalar,float,,,,same,number,0,,0.0001,launch_setup,Launch,enter 0 if heating model = No
+initial_altitude,Initial Altitude,scalar,float,,,,,number,0,,0.0001,launch_setup,Initial Conditions,not negative
+initial_velocity,Initial Velocity,scalar,float,,,,same,number,0,,0.0001,launch_setup,Initial Conditions,not negative
+geodetic_latitude,Geodetic Latitude,scalar,float,,,,same,number,-90,90,0.0001,launch_setup,Initial Conditions,
+longitude,Longitude,scalar,float,,,,same,number,-180,180,0.0001,launch_setup,Initial Conditions,geodetic ±180 (distinct from azimuth 0-360)
+initial_pitch,Initial Pitch Attitude,scalar,float,,,,same,number,-90,90,0.0001,launch_setup,Initial Conditions,autofill 90 if Vertical Launch
+initial_heading_azimuth,Initial Heading/Azimuth,scalar,float,,,,same,number,0,359.9999,0.0001,launch_setup,Initial Conditions,always = launch_azimuth; read-only derived (not editable)
+initial_bank,Initial Bank Angle (Roll Angle),scalar,float,,,,same,number,-90,90,0.0001,launch_setup,Initial Conditions,autofill 0 if Vertical Launch
+initial_aoa,Initial Angle of Attack,scalar,float,,,,same,number,-90,90,0.0001,launch_setup,Initial Conditions,autofill 0 if Vertical Launch
+integration_time_step,Integration Time Step,scalar,float,,,,,number,0,,0.0001,launch_setup,Integration,not zero; not negative
+total_time,Total Time for Trajectory Run,scalar,float,,,,same,number,0,10000,0.0001,launch_setup,Integration,not negative
+printout_rate,Printout/Excel Spreadsheet Output Rate,scalar,float,,,,same,number,0,,0.0001,launch_setup,Integration,not zero; >= integration_time_step
+stage_start_time,Stage Start Time,scalar,float,,stage,,,number,0,,0.0001,stage_data,Stage Data,not negative
+aero_ref_area,Stage Aerodynamic Reference Area,scalar,float,,stage,,same,number,0,,0.0001,stage_data,Stage Data,not negative
+stage_initial_weight,Stage Initial Weight,scalar,float,,stage,,same,number,0,,0.0001,stage_data,Stage Data,not negative
+stage_burnout_weight,Stage Burnout Weight,scalar,float,,stage,,same,number,0,,0.0001,stage_data,Stage Data,not negative
+engine_type,Rocket Engine Model Type,scalar,choice,,stage,,same,"radio:No Engine=0,Chamber Pressure=1,Thrust Time History=2",,,,stage_data,Stage Data,integer 0/1/2
+throat_area,Throat Area,scalar,float,,stage,engine_type==1,,number,0,,0.0001,stage_data,Rocket Engine (Chamber Pressure),
+nozzle_expansion_ratio,Nozzle Expansion Ratio,scalar,float,,stage,engine_type==1,same,number,0,,0.0001,stage_data,Rocket Engine (Chamber Pressure),
+nozzle_divergence_half_angle,Nozzle Divergence Half Angle,scalar,float,,stage,engine_type==1,same,number,0,,0.0001,stage_data,Rocket Engine (Chamber Pressure),
+chp_burn_time,Burn Time,scalar,float,,stage,engine_type==1,same,number,0,,0.0001,stage_data,Rocket Engine (Chamber Pressure),
+ref_thrust,Reference Thrust,scalar,float,,stage,engine_type==1,same,number,0,,0.0001,stage_data,Rocket Engine (Chamber Pressure),
+ref_specific_impulse,Reference Specific Impulse,scalar,float,,stage,engine_type==1,same,number,0,,0.0001,stage_data,Rocket Engine (Chamber Pressure),
+ref_chamber_pressure,Reference Chamber Pressure,scalar,float,,stage,engine_type==1,same,number,0,,0.0001,stage_data,Rocket Engine (Chamber Pressure),
+ref_atm_pressure,Reference Atmospheric Pressure,scalar,float,,stage,engine_type==1,same,number,0,,0.0001,stage_data,Rocket Engine (Chamber Pressure),
+ratio_specific_heats,Ratio of Specific Heats,scalar,float,,stage,engine_type==1,,number,0,,0.0001,stage_data,Rocket Engine (Chamber Pressure),
+thrust_coeff_ratio,Thrust Coefficient Ratio,scalar,float,,stage,engine_type==1,same,number,0,,0.0001,stage_data,Rocket Engine (Chamber Pressure),
+nozzle_type,Nozzle Type,scalar,choice,,stage,engine_type==1,same,"radio:Conical=1,Bell=2",,,,stage_data,Rocket Engine (Chamber Pressure),
+negative_thrust,Negative Thrust,scalar,choice,,stage,engine_type==1,same,"radio:Positive Thrust=0,Negative Thrust=1",,,,stage_data,Rocket Engine (Chamber Pressure),
+tth_burn_time,Burn Time,scalar,float,,stage,engine_type==2,,number,0,,0.0001,stage_data,Rocket Engine (Thrust History),
+nozzle_exit_area,Nozzle Exit Area,scalar,float,,stage,engine_type==2,same,number,0,,0.0001,stage_data,Rocket Engine (Thrust History),
+tth_ref_atm_pressure,Reference Atmospheric Pressure,scalar,float,,stage,engine_type==2,same,number,0,,0.0001,stage_data,Rocket Engine (Thrust History),
+tth_negative_thrust,Negative Thrust,scalar,choice,,stage,engine_type==2,same,"radio:Positive Thrust=0,Negative Thrust=1",,,,stage_data,Rocket Engine (Thrust History),
+n_history,Number of Time History Points,scalar,int,,,any(engine_type>0),,number,2,40,1,engine_time_history,Engine Time History,present only if a stage is powered (engine_type 1 or 2); label matches engine model
+history_time,Time,vector,float,n_history,,any(engine_type>0),,number,0,,0.0001,engine_time_history,Engine Time History,first time must be 0; last time may be less than total_time; no negatives; values must be unique
+history_value,Chamber Pressure / Thrust,vector,float,n_history,,any(engine_type>0),,number,0,,0.0001,engine_time_history,Engine Time History,units Chamber Pressure (type 1) or Thrust (type 2); no negatives
+n_traj,Number of Trajectory Time History Points,scalar,int,,,,,number,2,40,1,trajectory_control,Trajectory Control,
+traj_control,Trajectory Control,scalar,choice,,,,same,"radio:Pitch Attitude and Bank=0,Angle of Attack and Bank=1",,,,trajectory_control,Trajectory Control,
+traj_time,Time,vector,float,n_traj,,,,number,0,,0.0001,trajectory_control,Trajectory Control,first time must be 0; no negatives; values must be unique
+traj_angle,Angle of Attack / Pitch Attitude,vector,float,n_traj,,,,number,-90,90,0.0001,trajectory_control,Trajectory Control,label Angle of Attack (control 1) or Pitch Attitude (control 0)
+traj_bank,Bank (Roll) Angle,vector,float,n_traj,,,,number,-90,90,0.0001,trajectory_control,Trajectory Control,

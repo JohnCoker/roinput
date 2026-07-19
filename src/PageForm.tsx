@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, type CSSProperties } from "react";
 import { Divider, tokens } from "@fluentui/react-components";
 import { fields, type FieldDef } from "./metadata";
 import type { InputFile, Issue } from "./InputFile";
 import { fieldVisible, type NavLeaf } from "./navTree";
 import { fieldHidden } from "./fieldBinding";
 import { FieldControl } from "./FieldControl";
+import type { PageId } from "./pages";
 
 interface PageFormProps {
   file: InputFile;
@@ -50,10 +51,32 @@ function clusterRows(defs: FieldDef[]): FieldDef[][] {
   return rows;
 }
 
+function fieldSpacingStyle(pageId: PageId, def: FieldDef): CSSProperties | undefined {
+  if (pageId === "stage_data" && def.id === "engine_type") {
+    return {
+      marginTop: tokens.spacingVerticalL,
+      marginBottom: tokens.spacingVerticalL,
+    };
+  }
+  if (
+    pageId === "stage_data" &&
+    (def.id === "throat_area" || def.id === "tth_burn_time")
+  ) {
+    return { marginTop: tokens.spacingVerticalL };
+  }
+  if (
+    pageId === "engine_time_history" &&
+    (def.id === "history_time" || def.id === "history_value")
+  ) {
+    return { marginTop: tokens.spacingVerticalL };
+  }
+  return undefined;
+}
+
 export function PageForm({ file, selection, issues, onUpdate }: PageFormProps) {
   const groups = useMemo(() => {
     const pageFields = fields.filter((f) => {
-      if (f.page !== selection.page) return false;
+      if (f.pageId !== selection.pageId) return false;
       if (f.perStage && selection.stage === undefined) return false;
       if (!f.perStage && selection.stage !== undefined) return false;
       if (!fieldVisible(file, f, selection.stage)) return false;
@@ -109,6 +132,7 @@ export function PageForm({ file, selection, issues, onUpdate }: PageFormProps) {
                       maxWidth: "100%",
                       alignSelf: "start",
                       overflow: "hidden",
+                      ...fieldSpacingStyle(selection.pageId, def),
                     }}
                   >
                     <FieldControl
