@@ -3,6 +3,7 @@ import {
   choiceOptions,
   cloneInputFile,
   displayLabel,
+  displayLabelLines,
   fieldHidden,
   formatScalarValue,
   writeScalar,
@@ -69,6 +70,69 @@ describe("displayLabel unit suffixes", () => {
     );
     expect(displayLabel(file, field("geodetic_latitude"))).toBe("Geodetic Latitude (deg)");
     expect(displayLabel(file, field("launch_azimuth"))).toBe("Launch Azimuth (deg)");
+  });
+
+  it("labels launch azimuth as Initial Heading in conventional mode", () => {
+    const file = new InputFile();
+    file.units = "english";
+    file.launch.mode = "conventional";
+    expect(displayLabel(file, field("launch_azimuth"))).toBe("Initial Heading (deg)");
+  });
+
+  it("uses the shorter printout label", () => {
+    expect(displayLabel(new InputFile(), field("printout_rate"))).toBe(
+      "Printout Output Rate (every x sec)",
+    );
+  });
+
+  it("uses chamber pressure points label", () => {
+    const file = new InputFile();
+    file.stages = [
+      {
+        ...new InputFile().stages[0],
+        engine: {
+          kind: "chamberPressure",
+          throatArea: 1,
+          nozzleExpansionRatio: 1,
+          nozzleDivergenceHalfAngle: 1,
+          burnTime: 1,
+          refThrust: 1,
+          refSpecificImpulse: 1,
+          refChamberPressure: 1,
+          refAtmPressure: 1,
+          ratioSpecificHeats: 1,
+          thrustCoeffRatio: 1,
+          nozzleType: 1,
+          negativeThrust: false,
+        },
+      },
+    ];
+    expect(displayLabel(file, field("n_history"))).toBe(
+      "Number of Chamber Pressure Points",
+    );
+  });
+
+  it("splits thrust vectoring labels across two lines", () => {
+    const file = new InputFile();
+    file.units = "english";
+    expect(displayLabelLines(file, field("tvc_gimbal"))).toEqual([
+      "Thrust Vectoring Gimbal Location",
+      "(inches from nose tip)",
+    ]);
+    expect(displayLabelLines(file, field("tvc_percent"))).toEqual([
+      "Percent of Thrust for Pitch Thrust Vectoring",
+      "Enter 1.0 for 100%, 0.5 for 50%",
+    ]);
+    expect(displayLabelLines(file, field("tvc_maxangle"))).toEqual([
+      "Maximum Thrust Vector Angle (deg)",
+      "",
+    ]);
+    expect(displayLabel(file, field("tvc_percent"))).toBe(
+      "Percent of Thrust for Pitch Thrust Vectoring Enter 1.0 for 100%, 0.5 for 50%",
+    );
+    expect(displayLabel(file, field("tvc_maxangle"))).toBe(
+      "Maximum Thrust Vector Angle (deg)",
+    );
   });
 
   it("adds SI velocity, length, and thrust units", () => {

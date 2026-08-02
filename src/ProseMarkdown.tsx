@@ -30,6 +30,23 @@ const useStyles = makeStyles({
       fontWeight: tokens.fontWeightSemibold,
     },
   },
+  heading: {
+    display: "flex",
+    flexDirection: "column",
+    gap: tokens.spacingVerticalM,
+    "& > p": {
+      marginBottom: 0,
+    },
+    "& > p:last-child": {
+      marginBottom: 0,
+    },
+    "& > ul": {
+      marginBottom: 0,
+    },
+    "& > ul:last-child": {
+      marginBottom: 0,
+    },
+  },
   footing: {
     marginTop: tokens.spacingVerticalL,
     color: tokens.colorNeutralForeground2,
@@ -50,6 +67,7 @@ export function ProseMarkdown({ text, variant = "heading" }: ProseMarkdownProps)
     <div
       className={mergeClasses(
         styles.prose,
+        variant === "heading" ? styles.heading : undefined,
         variant === "footing" ? styles.footing : undefined,
       )}
     >

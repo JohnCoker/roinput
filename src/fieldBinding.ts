@@ -214,7 +214,29 @@ export function applyDerivedValues(file: InputFile): void {
   }
 }
 
+export function displayLabelLines(file: InputFile, def: FieldDef): string[] | null {
+  const fromNose =
+    file.units === "english" ? "inches from nose tip" : "meters from nose tip";
+  switch (def.id) {
+    case "tvc_gimbal":
+      return ["Thrust Vectoring Gimbal Location", `(${fromNose})`];
+    case "tvc_percent":
+      return [
+        "Percent of Thrust for Pitch Thrust Vectoring",
+        "Enter 1.0 for 100%, 0.5 for 50%",
+      ];
+    case "tvc_maxangle":
+      return ["Maximum Thrust Vector Angle (deg)", ""];
+    default:
+      return null;
+  }
+}
+
 export function displayLabel(file: InputFile, def: FieldDef): string {
+  const labelLines = displayLabelLines(file, def);
+  if (labelLines) {
+    return labelLines.filter((line) => line.length > 0).join(" ");
+  }
   if (def.id === "initial_heading_azimuth") {
     return file.launch.mode === "conventional"
       ? "Initial Heading"
@@ -240,7 +262,7 @@ export function displayLabel(file: InputFile, def: FieldDef): string {
       return "Number of Thrust Time History Points";
     }
     if (powered?.engine.kind === "chamberPressure") {
-      return "Number of Chamber Pressure Time History Points";
+      return "Number of Chamber Pressure Points";
     }
   }
   if (def.id === "history_value") {
@@ -254,12 +276,6 @@ export function displayLabel(file: InputFile, def: FieldDef): string {
         : "Chamber Pressure (MPa)";
     }
   }
-  if (def.id === "tvc_percent") {
-    return "Percent of Thrust for Pitch Thrust Vectoring Enter 1.0 for 100%, 0.5 for 50%";
-  }
-  if (def.id === "tvc_maxangle") {
-    return "Maximum Thrust Vector Angle (deg)";
-  }
   if (def.id === "initial_altitude") {
     return file.units === "english"
       ? "Initial Altitude (ft) - Above Sea Level"
@@ -269,7 +285,7 @@ export function displayLabel(file: InputFile, def: FieldDef): string {
     return "Initial Bank Angle (Roll Angle) (deg)";
   }
   if (def.id === "printout_rate") {
-    return "Printout/Excel Spreadsheet Output Rate (every x sec)";
+    return "Printout Output Rate (every x sec)";
   }
   if (def.id === "integration_time_step" || def.id === "total_time") {
     return `${def.label} (sec)`;
@@ -299,10 +315,6 @@ export function displayLabel(file: InputFile, def: FieldDef): string {
   if (def.id === "cg") {
     return `Center of Gravity (CG) – (${fromNose})`;
   }
-  if (def.id === "tvc_gimbal") {
-    return `Thrust Vectoring Gimbal Location (${fromNose})`;
-  }
-
   if (file.units === "english") {
     switch (def.id) {
       case "weight":

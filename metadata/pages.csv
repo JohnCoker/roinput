@@ -1,5 +1,5 @@
 id,ordinal,kind,run,when,branch,title,heading,footing
-configuration,1,fixed,,,default,Configuration,,"Select SI (Metric) or English units and CN/CA/CP or CL/CD/CP aerodynamic data."
+configuration,1,fixed,,,default,Configuration,,"Select SI (Metric) or English units and CL/CD/CP or CN/CA/CP aerodynamic data."
 aero_notes,2,fixed,,,default,Aerodynamic Data Notes,,
 aero_notes,2,fixed,,,aero_type=1,,"**Notes on Aerodynamic Data**
 
@@ -12,21 +12,26 @@ For liquid rocket engine or solid rocket motor powered stages, aerodynamic data 
 
 If the stage is unpowered, aerodynamic data is power-off aerodynamic data. Delta drag coefficient increment for power-off is set to zero.",
 aero_data,3,per_stage,aero,,default,Aerodynamic Data,"Enter angles of attack and Mach numbers for the aerodynamic data.",
-normal_force_coef,4,per_stage,aero,,default,Normal Force Coefficient,Enter normal force coefficient.,Mach number = rows; angles of attack = columns.
+normal_force_coef,4,per_stage,aero,,default,Normal Force Coefficient,Enter normal force coefficient.,"Mach number = rows, angle of attack = columns."
 normal_force_coef,4,per_stage,aero,,aero_type=0,Lift Coefficient,Enter lift coefficient.,
-axial_force_coef,5,per_stage,aero,,default,Axial Force Coefficient,Enter axial force coefficient.,Mach number = rows; angles of attack = columns.
-axial_force_coef,5,per_stage,aero,,aero_type=0,Drag Coefficient,Enter the drag coefficient.,
-center_of_pressure,6,per_stage,aero,,default,Center of Pressure,Enter center of pressure.,Mach number = rows; angles of attack = columns.
+axial_force_coef,5,per_stage,aero,,default,Axial Force Coefficient,Enter axial force coefficient.,"Mach number = rows, angle of attack = columns."
+axial_force_coef,5,per_stage,aero,,aero_type=0,Drag Coefficient,Enter drag coefficient.,
+center_of_pressure,6,per_stage,aero,,default,Center of Pressure,Enter center of pressure.,"Mach number = rows, angle of attack = columns."
 power_off_delta,7,per_stage,aero,,default,Power-Off Delta,Enter power-off delta values versus Mach number. Mach numbers are auto-populated from Aerodynamic Data.,
 power_off_delta,7,per_stage,aero,,aero_type=1,,,Positive power-off delta axial force coefficient means power-off axial force coefficient is higher than power-on. Power-off delta axial force increment is assumed constant with angle of attack.
 power_off_delta,7,per_stage,aero,,aero_type=0,,,"Positive power-off delta drag coefficient means power-off drag coefficient is higher than power-on. Power-off delta drag coefficient is at zero degrees angle of attack, converted to power-off delta axial force coefficient, which is assumed constant with angle of attack."
-cg_and_inertia,8,per_stage,aero,,default,CG and Inertia,"Enter weight breakpoints, center of gravity, and pitch inertia.","If you do not wish to calculate thrust vector angle, enter zeros for CG. The flight simulation will still run; thrust vector angle will be zero.
+cg_and_inertia,8,per_stage,aero,,default,CG and Inertia,"Enter weight breakpoints, center of gravity, and pitch inertia.","If you do not wish to calculate thrust vector angle, enter zeros for CG. The flight simulation will still run, thrust vector angle will be zero.
 
-If you do not wish to calculate time-to-double-amplitude, enter zeros for CG and pitch inertia. The flight simulation will still run; time-to-double-amplitude will not be calculated."
+If you do not wish to calculate time-to-double-amplitude, enter zeros for CG and pitch inertia. The flight simulation will still run, time-to-double-amplitude will not be calculated."
 thrust_vectoring,9,per_stage,aero,,default,Thrust Vectoring,"Enter thrust vectoring gimbal location, percent of thrust for pitch thrust vectoring, and maximum thrust vector angle.","If the stage is unpowered, enter zero for all three thrust vectoring inputs.
 
 If you do not wish to calculate thrust vector angle, enter zero for all three thrust vectoring inputs."
 launch_setup,10,fixed,,,default,Launch Setup,"Conventional Flight - Any flight condition, including air-launch, and starting a stage at any altitude and velocity.
+
+Vertical Launch - Ground launch from launch site, 90 deg pitch attitude, zero initial velocity, vertical lift-off.
+
+Initial Heading - True North 0 deg, East 90 deg, South 180 deg",
+launch_setup,10,fixed,,,launch_mode=1,Launch Setup,"Conventional Flight - Any flight condition, including air-launch, and starting a stage at any altitude and velocity.
 
 Vertical Launch - Ground launch from launch site, 90 deg pitch attitude, zero initial velocity, vertical lift-off.
 
@@ -35,8 +40,8 @@ stage_data,11,per_stage,stage_engine,,default,Stage Data,"Enter stage timing, ae
 
 (n.d.) – non-dimensional
 
-Negative Thrust is for Fly-Back Boosters"
-engine_time_history,12,fixed,,any(engine_type>0),default,Engine Time History,Enter engine time history points.,First time must be zero. Last time may be less than total time for the trajectory run.
+Negative thrust is for fly-back boosters."
+engine_time_history,12,fixed,,any(engine_type>0),default,Engine Time History,Enter engine time history points.,First time must be zero. Last time may be less than the total time for the trajectory run.
 engine_time_history,12,fixed,,any(engine_type>0),engine_type=1,Chamber Pressure Time History,Enter chamber pressure versus time (chamber pressure time history).,
 engine_time_history,12,fixed,,any(engine_type>0),engine_type=2,Thrust Time History,Enter thrust versus time (the thrust curve).,
 trajectory_control,13,fixed,,,default,Trajectory Control,Enter trajectory control time history points.,First time must be zero. Last time must be equal to the total run time for the trajectory.

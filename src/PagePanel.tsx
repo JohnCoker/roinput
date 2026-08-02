@@ -45,7 +45,16 @@ export function PagePanel({ file, selection, issues, onUpdate }: PagePanelProps)
           {pageTitle}
         </Title3>
 
-        <ProseMarkdown text={heading} variant="heading" />
+        <div
+          style={{
+            marginBottom:
+              selection.pageId === "launch_setup" && heading.trim()
+                ? tokens.spacingVerticalM
+                : 0,
+          }}
+        >
+          <ProseMarkdown text={heading} variant="heading" />
+        </div>
       </div>
 
       <PageForm

@@ -5,6 +5,8 @@ import {
   Radio,
   RadioGroup,
   Text,
+  makeStyles,
+  mergeClasses,
   tokens,
 } from "@fluentui/react-components";
 import type { InputProps } from "@fluentui/react-components";
@@ -13,6 +15,7 @@ import type { InputFile, Issue } from "./InputFile";
 import {
   choiceOptions,
   displayLabel,
+  displayLabelLines,
   fieldHidden,
   fieldReadOnly,
   formatScalarValue,
@@ -26,84 +29,76 @@ import {
 
 const VECTOR_COLS = 8;
 
-const radioGroupStyle = {
-  display: "flex" as const,
-  flexWrap: "wrap" as const,
-  columnGap: tokens.spacingHorizontalXL,
-  rowGap: tokens.spacingVerticalM,
-};
-
-const spreadsheetTableWrapStyle = {
-  width: "100%",
-  maxWidth: "100%",
-  overflowX: "auto" as const,
-};
-
-const spreadsheetTableStyle = {
-  borderCollapse: "collapse" as const,
-  tableLayout: "fixed" as const,
-  width: "100%",
-  fontSize: tokens.fontSizeBase300,
-};
-
-const spreadsheetCellOverflow = {
-  overflow: "hidden" as const,
-  textOverflow: "ellipsis" as const,
-  whiteSpace: "nowrap" as const,
-  minWidth: 0,
-};
-
-const spreadsheetRowHeaderCellStyle = {
-  textAlign: "left" as const,
-  padding: tokens.spacingHorizontalXS,
-  border: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke1}`,
-  whiteSpace: "nowrap" as const,
-  width: "0",
-};
-
-const spreadsheetHeaderCellStyle = {
-  textAlign: "left" as const,
-  padding: tokens.spacingHorizontalXS,
-  fontWeight: tokens.fontWeightSemibold,
-  border: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke1}`,
-  ...spreadsheetCellOverflow,
-};
-
-const spreadsheetCornerCellStyle = {
-  ...spreadsheetRowHeaderCellStyle,
-  fontWeight: tokens.fontWeightSemibold,
-};
-
-const spreadsheetBodyCellStyle = {
-  padding: 0,
-  border: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke1}`,
-  ...spreadsheetCellOverflow,
-};
-
-const spreadsheetLabelCellStyle = {
-  ...spreadsheetRowHeaderCellStyle,
-};
-
-const spreadsheetInputStyle = {
-  width: "100%",
-  minWidth: 0,
-  border: "none",
-  borderRadius: 0,
-  boxShadow: "none",
-};
-
-const spreadsheetInputProps = {
-  style: spreadsheetInputStyle,
-  input: {
-    style: {
-      textAlign: "left" as const,
-      paddingInline: tokens.spacingHorizontalXS,
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      minWidth: 0,
-    },
+const useStyles = makeStyles({
+  tableWrap: {
+    width: "100%",
+    maxWidth: "100%",
   },
-};
+  table: {
+    borderCollapse: "collapse",
+    tableLayout: "fixed",
+    width: "100%",
+    fontSize: tokens.fontSizeBase300,
+  },
+  headerCell: {
+    textAlign: "left",
+    padding: tokens.spacingHorizontalXS,
+    fontWeight: tokens.fontWeightSemibold,
+    border: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke1}`,
+    whiteSpace: "nowrap",
+  },
+  headerCellClip: {
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    maxWidth: "8rem",
+  },
+  rowHeaderCell: {
+    textAlign: "left",
+    padding: tokens.spacingHorizontalXS,
+    fontWeight: tokens.fontWeightSemibold,
+    border: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke1}`,
+    whiteSpace: "nowrap",
+  },
+  bodyCell: {
+    padding: 0,
+    border: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke1}`,
+    minWidth: 0,
+  },
+  cellInput: {
+    width: "100%",
+    minWidth: 0,
+    border: "none",
+    borderRadius: 0,
+    boxShadow: "none",
+  },
+  cellInputField: {
+    textAlign: "left",
+    paddingInline: tokens.spacingHorizontalXS,
+    fontWeight: tokens.fontWeightRegular,
+  },
+  fieldShell: {
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+  },
+  choiceControlOnly: {
+    width: "fit-content",
+    maxWidth: "100%",
+  },
+  engineTypeRadioGroup: {
+    rowGap: tokens.spacingVerticalM,
+  },
+  columnInput: {
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    boxSizing: "border-box",
+  },
+  fieldLabelLine: {
+    display: "block",
+    lineHeight: tokens.lineHeightBase300,
+  },
+});
 
 function vectorRowChunks(length: number, cols = VECTOR_COLS): number[][] {
   if (length === 0) return [];
@@ -159,20 +154,6 @@ function fieldValidation(issues: Issue[]): {
   return { message, state: softOnly ? "warning" : "error" };
 }
 
-const fieldShellStyle = {
-  width: "100%",
-  maxWidth: "100%",
-  minWidth: 0,
-  alignSelf: "start" as const,
-};
-
-const columnInputStyle = {
-  width: "100%",
-  maxWidth: "100%",
-  minWidth: 0,
-  boxSizing: "border-box" as const,
-};
-
 type EditableNumericInputProps = Omit<
   InputProps,
   "value" | "onChange" | "defaultValue"
@@ -188,6 +169,8 @@ function EditableNumericInput({
   onFocus,
   onBlur,
   readOnly,
+  className,
+  input,
   ...inputProps
 }: EditableNumericInputProps) {
   const editingRef = useRef(false);
@@ -206,7 +189,9 @@ function EditableNumericInput({
     <Input
       {...inputProps}
       readOnly={readOnly}
+      className={className}
       value={editing ? draft : value}
+      input={input}
       onFocus={(ev) => {
         if (!readOnly) {
           editingRef.current = true;
@@ -234,39 +219,53 @@ function EditableNumericInput({
   );
 }
 
-function truncatedFieldText(text: string) {
-  return {
-    children: text,
-    title: text,
-    style: {
-      display: "block",
-      maxWidth: "100%",
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap" as const,
-    },
-  };
+function FieldLabel({ file, def }: { file: InputFile; def: FieldDef }) {
+  const styles = useStyles();
+  const lines = displayLabelLines(file, def);
+  if (lines) {
+    return (
+      <>
+        {lines.map((line, index) => (
+          <Text
+            key={index}
+            block
+            size={300}
+            weight="semibold"
+            className={styles.fieldLabelLine}
+          >
+            {line.length > 0 ? line : "\u00A0"}
+          </Text>
+        ))}
+      </>
+    );
+  }
+  return (
+    <Text block size={300} weight="semibold" wrap>
+      {displayLabel(file, def)}
+    </Text>
+  );
 }
 
-function truncatedFieldLabel(file: InputFile, def: FieldDef) {
-  return truncatedFieldText(displayLabel(file, def));
-}
-
-function fieldProps(
+function fieldShellProps(
   file: InputFile,
   def: FieldDef,
   validationState: "none" | "error" | "warning",
   validationMessage?: string,
+  showLabel = true,
 ) {
   return {
-    label: truncatedFieldLabel(file, def),
-    style: fieldShellStyle,
+    label: showLabel ? <FieldLabel file={file} def={def} /> : undefined,
+    className: undefined,
     validationState,
-    validationMessage: validationMessage
-      ? truncatedFieldText(validationMessage)
-      : undefined,
+    validationMessage,
   };
 }
+
+export function FieldControlLabel({ file, def }: { file: InputFile; def: FieldDef }) {
+  return <FieldLabel file={file} def={def} />;
+}
+
+export type FieldControlPart = "full" | "label" | "control";
 
 interface ScalarControlProps {
   def: FieldDef;
@@ -274,40 +273,87 @@ interface ScalarControlProps {
   stage?: number;
   issues: Issue[];
   onUpdate: (mutate: (f: InputFile) => void) => void;
+  part?: FieldControlPart;
 }
 
-function ScalarControl({ def, file, stage, issues, onUpdate }: ScalarControlProps) {
+function ScalarControl({
+  def,
+  file,
+  stage,
+  issues,
+  onUpdate,
+  part = "full",
+}: ScalarControlProps) {
+  const styles = useStyles();
   const errs = issuesForField(issues, def.id, stage);
   const { message: validationMessage, state: validationState } = fieldValidation(errs);
 
   if (fieldHidden(file, def)) return null;
 
+  if (part === "label") {
+    return <FieldLabel file={file} def={def} />;
+  }
+
+  const showLabel = part === "full";
   const options = choiceOptions(file, def);
   if (def.type === "choice" && options) {
     const raw = readScalar(file, def.id, stage);
     const value = raw === null ? "" : String(raw);
+    const radioGroup = (
+      <RadioGroup
+        className={def.id === "engine_type" ? styles.engineTypeRadioGroup : undefined}
+        layout="vertical"
+        value={value}
+        onChange={(_, data) => {
+          onUpdate((f) => writeScalar(f, def.id, Number(data.value), stage));
+        }}
+      >
+        {options.map((opt) => (
+          <Radio key={opt.value} value={String(opt.value)} label={opt.label} />
+        ))}
+      </RadioGroup>
+    );
+
+    if (part === "control") {
+      return (
+        <div className={styles.choiceControlOnly}>
+          {radioGroup}
+          {validationMessage ? (
+            <Text
+              size={200}
+              style={{
+                marginTop: tokens.spacingVerticalXXS,
+                color:
+                  validationState === "error"
+                    ? tokens.colorPaletteRedForeground1
+                    : tokens.colorNeutralForeground3,
+              }}
+            >
+              {validationMessage}
+            </Text>
+          ) : null}
+        </div>
+      );
+    }
+
     return (
-      <Field {...fieldProps(file, def, validationState, validationMessage)}>
-        <RadioGroup
-          style={radioGroupStyle}
-          value={value}
-          onChange={(_, data) => {
-            onUpdate((f) => writeScalar(f, def.id, Number(data.value), stage));
-          }}
-        >
-          {options.map((opt) => (
-            <Radio key={opt.value} value={String(opt.value)} label={opt.label} />
-          ))}
-        </RadioGroup>
+      <Field
+        {...fieldShellProps(file, def, validationState, validationMessage, showLabel)}
+        className={styles.fieldShell}
+      >
+        {radioGroup}
       </Field>
     );
   }
 
   if (def.type === "text") {
     return (
-      <Field {...fieldProps(file, def, validationState, validationMessage)}>
+      <Field
+        {...fieldShellProps(file, def, validationState, validationMessage, showLabel)}
+        className={styles.fieldShell}
+      >
         <Input
-          style={columnInputStyle}
+          className={styles.columnInput}
           value={file.title}
           maxLength={80}
           onChange={(_, data) => {
@@ -324,18 +370,29 @@ function ScalarControl({ def, file, stage, issues, onUpdate }: ScalarControlProp
   const display = formatScalarValue(raw, def);
   const readOnly = fieldReadOnly(def);
 
+  const numericInput = (
+    <EditableNumericInput
+      className={styles.columnInput}
+      value={display}
+      readOnly={readOnly}
+      inputMode={def.type === "int" ? "numeric" : "decimal"}
+      onCommit={(raw) => {
+        if (readOnly) return;
+        onUpdate((f) => writeScalar(f, def.id, raw, stage));
+      }}
+    />
+  );
+
+  if (part === "control") {
+    return numericInput;
+  }
+
   return (
-    <Field {...fieldProps(file, def, validationState, validationMessage)}>
-      <EditableNumericInput
-        style={columnInputStyle}
-        value={display}
-        readOnly={readOnly}
-        inputMode={def.type === "int" ? "numeric" : "decimal"}
-        onCommit={(raw) => {
-          if (readOnly) return;
-          onUpdate((f) => writeScalar(f, def.id, raw, stage));
-        }}
-      />
+    <Field
+      {...fieldShellProps(file, def, validationState, validationMessage, showLabel)}
+      className={styles.fieldShell}
+    >
+      {numericInput}
     </Field>
   );
 }
@@ -349,18 +406,21 @@ interface VectorControlProps {
 }
 
 function VectorControl({ def, file, stage, issues, onUpdate }: VectorControlProps) {
+  const styles = useStyles();
   const values = readVector(file, def.id, stage);
   const fieldIssues = issuesForField(issues, def.id, stage);
   const { message: validationMessage, state: validationState } = fieldValidation(fieldIssues);
   const machLabels = machColumnLabels(file, def, stage);
   const label = displayLabel(file, def);
-  // Mach count tops out at 15 — keep on one row. Other vectors wrap at 8 (with headers per band when needed).
   const chunkCols = def.id === "mach" ? Math.max(values.length, 1) : VECTOR_COLS;
   const rows = vectorRowChunks(values.length, chunkCols);
 
   if (machLabels !== null && machLabels.length === 0) {
     return (
-      <Field {...fieldProps(file, def, validationState, validationMessage)}>
+      <Field
+        {...fieldShellProps(file, def, validationState, validationMessage)}
+        className={styles.fieldShell}
+      >
         <Text block style={{ color: tokens.colorNeutralForeground3 }}>
           Set Mach numbers on the aerodynamic data page first.
         </Text>
@@ -369,9 +429,12 @@ function VectorControl({ def, file, stage, issues, onUpdate }: VectorControlProp
   }
 
   return (
-    <Field {...fieldProps(file, def, validationState, validationMessage)}>
-      <div style={spreadsheetTableWrapStyle}>
-        <table style={spreadsheetTableStyle}>
+    <Field
+      {...fieldShellProps(file, def, validationState, validationMessage)}
+      className={styles.fieldShell}
+    >
+      <div className={styles.tableWrap}>
+        <table className={styles.table}>
           <tbody>
             {rows.map((indices) => (
               <Fragment key={indices[0]}>
@@ -380,7 +443,7 @@ function VectorControl({ def, file, stage, issues, onUpdate }: VectorControlProp
                     {indices.map((index) => (
                       <th
                         key={index}
-                        style={spreadsheetHeaderCellStyle}
+                        className={styles.headerCell}
                         title={formatScalarValue(machLabels[index], def)}
                       >
                         {formatScalarValue(machLabels[index], def)}
@@ -390,9 +453,10 @@ function VectorControl({ def, file, stage, issues, onUpdate }: VectorControlProp
                 ) : null}
                 <tr>
                   {indices.map((index) => (
-                    <td key={index} style={spreadsheetBodyCellStyle}>
+                    <td key={index} className={styles.bodyCell}>
                       <EditableNumericInput
-                        {...spreadsheetInputProps}
+                        className={styles.cellInput}
+                        input={{ className: styles.cellInputField }}
                         value={formatScalarValue(values[index], def)}
                         inputMode="decimal"
                         title={formatScalarValue(values[index], def)}
@@ -428,6 +492,7 @@ interface MatrixControlProps {
 }
 
 function MatrixControl({ def, file, stage, issues, onUpdate }: MatrixControlProps) {
+  const styles = useStyles();
   const matrix = readMatrix(file, def.id, stage);
   const mach = readVector(file, "mach", stage);
   const aoa = readVector(file, "aoa", stage);
@@ -444,14 +509,28 @@ function MatrixControl({ def, file, stage, issues, onUpdate }: MatrixControlProp
   }
 
   return (
-    <Field {...fieldProps(file, def, validationState, validationMessage)}>
-      <div style={spreadsheetTableWrapStyle}>
-        <table style={spreadsheetTableStyle}>
+    <Field
+      {...fieldShellProps(file, def, validationState, validationMessage)}
+      className={styles.fieldShell}
+    >
+      <div className={styles.tableWrap}>
+        <table className={styles.table}>
           <thead>
             <tr>
-              <th style={spreadsheetCornerCellStyle} aria-hidden="true" />
+              <th className={styles.rowHeaderCell} rowSpan={2}>
+                Mach Number
+              </th>
+              <th className={styles.headerCell} colSpan={aoa.length}>
+                Angle of Attack (deg)
+              </th>
+            </tr>
+            <tr>
               {aoa.map((a, ci) => (
-                <th key={ci} style={spreadsheetHeaderCellStyle} title={formatScalarValue(a, def)}>
+                <th
+                  key={ci}
+                  className={mergeClasses(styles.headerCell, styles.headerCellClip)}
+                  title={formatScalarValue(a, def)}
+                >
                   {formatScalarValue(a, def)}
                 </th>
               ))}
@@ -461,15 +540,16 @@ function MatrixControl({ def, file, stage, issues, onUpdate }: MatrixControlProp
             {matrix.map((row, ri) => (
               <tr key={ri}>
                 <td
-                  style={spreadsheetLabelCellStyle}
+                  className={styles.rowHeaderCell}
                   title={formatScalarValue(mach[ri] ?? ri, def)}
                 >
                   {formatScalarValue(mach[ri] ?? ri, def)}
                 </td>
                 {row.map((cell, ci) => (
-                  <td key={ci} style={spreadsheetBodyCellStyle}>
+                  <td key={ci} className={styles.bodyCell}>
                     <EditableNumericInput
-                      {...spreadsheetInputProps}
+                      className={styles.cellInput}
+                      input={{ className: styles.cellInputField }}
                       value={formatScalarValue(cell, def)}
                       inputMode="decimal"
                       title={formatScalarValue(cell, def)}
@@ -497,9 +577,10 @@ interface FieldControlProps {
   stage?: number;
   issues: Issue[];
   onUpdate: (mutate: (f: InputFile) => void) => void;
+  part?: FieldControlPart;
 }
 
-export function FieldControl(props: FieldControlProps) {
+export function FieldControl({ part = "full", ...props }: FieldControlProps) {
   const { def } = props;
   if (def.kind === "matrix") {
     if (props.stage === undefined) return null;
@@ -508,5 +589,5 @@ export function FieldControl(props: FieldControlProps) {
   if (def.kind === "vector") {
     return <VectorControl {...props} />;
   }
-  return <ScalarControl {...props} />;
+  return <ScalarControl {...props} part={part} />;
 }

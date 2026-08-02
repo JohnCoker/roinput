@@ -29,7 +29,7 @@ describe("pages.csv", () => {
     );
   });
 
-  it("shows all launch mode descriptions on launch_setup", () => {
+  it("shows launch mode descriptions with mode-specific compass line", () => {
     const conventional = new InputFile();
     conventional.launch.mode = "conventional";
     const vertical = new InputFile();
@@ -38,8 +38,9 @@ describe("pages.csv", () => {
     const copyVertical = resolvePageCopy("launch_setup", vertical);
     expect(copyConventional?.heading).toContain("Conventional Flight");
     expect(copyConventional?.heading).toContain("Vertical Launch");
-    expect(copyConventional?.heading).toContain("Launch Azimuth");
-    expect(copyVertical?.heading).toBe(copyConventional?.heading);
+    expect(copyConventional?.heading).toContain("Initial Heading");
+    expect(copyVertical?.heading).toContain("Launch Azimuth");
+    expect(copyVertical?.heading).not.toContain("Initial Heading - True North");
   });
 
   it("resolves CL branch title on normal_force_coef", () => {
@@ -55,7 +56,7 @@ describe("pages.csv", () => {
     file.aeroType = "clcd";
     const copy = resolvePageCopy("axial_force_coef", file);
     expect(copy?.title).toBe("Drag Coefficient");
-    expect(copy?.heading).toBe("Enter the drag coefficient.");
+    expect(copy?.heading).toBe("Enter drag coefficient.");
   });
 
   it("keeps commas inside the stage_data heading", () => {
@@ -65,6 +66,33 @@ describe("pages.csv", () => {
     );
     expect(copy?.footing).toContain("Rocket engine can be liquid rocket engine");
     expect(copy?.footing).not.toContain("engine model type is 0");
+  });
+
+  it("uses comma in coefficient page footing", () => {
+    const copy = resolvePageCopy("normal_force_coef", new InputFile());
+    expect(copy?.footing).toBe("Mach number = rows, angle of attack = columns.");
+  });
+
+  it("uses commas in CG and Inertia footing", () => {
+    const copy = resolvePageCopy("cg_and_inertia", new InputFile());
+    expect(copy?.footing).toContain("will still run, thrust vector angle");
+    expect(copy?.footing).toContain("will still run, time-to-double-amplitude");
+  });
+
+  it("orders configuration footing like the radio buttons", () => {
+    const copy = resolvePageCopy("configuration", new InputFile());
+    expect(copy?.footing).toContain("CL/CD/CP or CN/CA/CP");
+  });
+
+  it("uses lowercase fly-back booster note on stage_data", () => {
+    const copy = resolvePageCopy("stage_data", new InputFile());
+    expect(copy?.footing).toContain("Negative thrust is for fly-back boosters.");
+  });
+
+  it("adds the to engine history footing", () => {
+    const file = InputFile.parse(validFixtures[0].dat).file;
+    const copy = resolvePageCopy("engine_time_history", file);
+    expect(copy?.footing).toContain("less than the total time");
   });
 
   it("extends trajectory_control footing", () => {

@@ -5,8 +5,8 @@
       {
         "label": "main",
         "title": "RASOrbit Input Editor",
-        "width": 1000,
-        "height": 700,
+        "width": 1200,
+        "height": 960,
         "devtools": false,
         "transparent": true,
         "windowEffects": {
