@@ -35,13 +35,14 @@ Other platforms may be built from [source](https://github.com/johncoker/roinput/
    - Enter values in the controls on the current page.
    - Changing the number of stages, angles of attack, or Mach numbers resizes the
      dependent grids and vectors automatically.
-   - On page 1, SI/English and CN/CA/CP vs CL/CD/CP change labels and units shown;
-     they do **not** convert stored numbers (RASOrbit reads the flags from line 2 of the file).
+   - On the **Configuration** page, SI/English and CN/CA/CP vs CL/CD/CP change labels and units shown;
+     they do **not** convert stored numbers.
 
 5. **Check status**:
    - The outline marks pages as complete, incomplete, or in error.
    - Invalid values are highlighted on the page.
    - A dot in the window title means the file has unsaved changes.
+   - Save is blocked while validation errors remain.
 
 6. **Save**:
    - Use **File → Save** or **File → Save As…** to write the file back out.
