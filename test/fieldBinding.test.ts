@@ -33,6 +33,24 @@ describe("choiceOptions", () => {
     expect(options?.map((o) => o.label)).toEqual(["Yes", "No"]);
     expect(options?.map((o) => o.value)).toEqual([1, 0]);
   });
+
+  it("lists angle-of-attack trajectory control before pitch attitude", () => {
+    const file = new InputFile();
+    const options = choiceOptions(file, field("traj_control"));
+    expect(options?.map((o) => o.value)).toEqual([1, 0]);
+  });
+
+  it("wraps thrust time history engine type across four lines", () => {
+    const file = new InputFile();
+    const options = choiceOptions(file, field("engine_type"));
+    expect(options?.[2].labelLines).toEqual([
+      "Thrust Time History Model",
+      "Thrust Variation with",
+      "Altitude Using Nozzle Exit",
+      "Area",
+    ]);
+    expect(options?.[2].label).not.toContain("–");
+  });
 });
 
 describe("formatScalarValue", () => {
@@ -85,7 +103,7 @@ describe("displayLabel unit suffixes", () => {
     );
   });
 
-  it("uses chamber pressure points label", () => {
+  it("uses chamber pressure time history points label", () => {
     const file = new InputFile();
     file.stages = [
       {
@@ -108,7 +126,7 @@ describe("displayLabel unit suffixes", () => {
       },
     ];
     expect(displayLabel(file, field("n_history"))).toBe(
-      "Number of Chamber Pressure Points",
+      "Number of Chamber Pressure Time History Points",
     );
   });
 

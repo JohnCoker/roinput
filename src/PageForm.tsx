@@ -52,7 +52,13 @@ function clusterRows(defs: FieldDef[]): FieldDef[][] {
 }
 
 function fieldSpacingStyle(pageId: PageId, def: FieldDef): CSSProperties | undefined {
+  if (pageId === "launch_setup" && def.id === "launch_mode") {
+    return { marginTop: tokens.spacingVerticalL };
+  }
   if (pageId === "launch_setup" && def.id === "integration_time_step") {
+    return { marginTop: tokens.spacingVerticalL };
+  }
+  if (pageId === "stage_data" && def.id === "stage_start_time") {
     return { marginTop: tokens.spacingVerticalL };
   }
   if (pageId === "stage_data" && def.id === "engine_type") {
@@ -76,10 +82,17 @@ function fieldSpacingStyle(pageId: PageId, def: FieldDef): CSSProperties | undef
   return undefined;
 }
 
+const STAGE_DATA_COLS = FORM_COLS;
+
 function alignedRowSpacingStyle(pageId: PageId, row: FieldDef[]): CSSProperties | undefined {
   if (
     pageId === "stage_data" &&
-    row.some((def) => def.id === "throat_area" || def.id === "tth_burn_time")
+    row.some(
+      (def) =>
+        def.id === "throat_area" ||
+        def.id === "tth_burn_time" ||
+        def.id === "ratio_specific_heats",
+    )
   ) {
     return { marginTop: tokens.spacingVerticalL };
   }
@@ -102,7 +115,11 @@ function rowUsesAlignedLayout(pageId: PageId, row: FieldDef[]): boolean {
 }
 
 function rowLayoutStyle(pageId: PageId, row: FieldDef[]): CSSProperties {
-  if (pageId === "configuration" && row.length <= 3) {
+  if (
+    pageId === "configuration" &&
+    row.length <= 3 &&
+    !row.some((def) => def.type === "text")
+  ) {
     return {
       display: "grid",
       gridTemplateColumns: "repeat(3, max-content)",
@@ -137,7 +154,6 @@ function fieldItemStyle(pageId: PageId, def: FieldDef): CSSProperties {
 const labelCellStyle: CSSProperties = {
   display: "flex",
   flexDirection: "column",
-  justifyContent: "flex-end",
   minWidth: 0,
 };
 
@@ -165,12 +181,14 @@ function AlignedFieldRow({
 }: AlignedFieldRowProps) {
   const visible = row.filter((def) => !fieldHidden(file, def));
   if (visible.length === 0) return null;
+  const columnCount =
+    pageId === "stage_data" ? STAGE_DATA_COLS : visible.length;
 
   return (
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: `repeat(${visible.length}, minmax(0, 1fr))`,
+        gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
         gridTemplateRows: "auto auto",
         columnGap: tokens.spacingHorizontalL,
         rowGap: tokens.spacingVerticalXS,

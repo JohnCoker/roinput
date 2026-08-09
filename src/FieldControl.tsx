@@ -94,6 +94,13 @@ const useStyles = makeStyles({
     minWidth: 0,
     boxSizing: "border-box",
   },
+  titleInput: {
+    maxWidth: "80ch",
+  },
+  choiceRadioLabel: {
+    display: "flex",
+    flexDirection: "column",
+  },
   fieldLabelLine: {
     display: "block",
     lineHeight: tokens.lineHeightBase300,
@@ -309,7 +316,28 @@ function ScalarControl({
         }}
       >
         {options.map((opt) => (
-          <Radio key={opt.value} value={String(opt.value)} label={opt.label} />
+          <Radio
+            key={opt.value}
+            value={String(opt.value)}
+            label={
+              opt.labelLines ? (
+                <span className={styles.choiceRadioLabel}>
+                  {opt.labelLines.map((line, index) => (
+                    <Text
+                      key={index}
+                      block
+                      size={300}
+                      className={styles.fieldLabelLine}
+                    >
+                      {line}
+                    </Text>
+                  ))}
+                </span>
+              ) : (
+                opt.label
+              )
+            }
+          />
         ))}
       </RadioGroup>
     );
@@ -353,7 +381,7 @@ function ScalarControl({
         className={styles.fieldShell}
       >
         <Input
-          className={styles.columnInput}
+          className={mergeClasses(styles.columnInput, styles.titleInput)}
           value={file.title}
           maxLength={80}
           onChange={(_, data) => {

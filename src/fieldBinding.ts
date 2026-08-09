@@ -262,7 +262,7 @@ export function displayLabel(file: InputFile, def: FieldDef): string {
       return "Number of Thrust Time History Points";
     }
     if (powered?.engine.kind === "chamberPressure") {
-      return "Number of Chamber Pressure Points";
+      return "Number of Chamber Pressure Time History Points";
     }
   }
   if (def.id === "history_value") {
@@ -410,16 +410,21 @@ export function choiceOptions(
       { label: "No Rocket Engine, Glider or Coasting Rocket", value: 0 },
       { label: "Model Using Chamber Pressure and Nozzle Geometry", value: 1 },
       {
-        label:
-          "Thrust Time History Model – Thrust Variation with Altitude Using Nozzle Exit Area",
+        label: "Thrust Time History Model Thrust Variation with Altitude Using Nozzle Exit Area",
+        labelLines: [
+          "Thrust Time History Model",
+          "Thrust Variation with",
+          "Altitude Using Nozzle Exit",
+          "Area",
+        ],
         value: 2,
       },
     ];
   }
   if (def.id === "traj_control") {
     return [
-      { label: "Pitch Attitude and Bank Angle (Roll Angle)", value: 0 },
       { label: "Angle of Attack and Bank Angle (Roll Angle)", value: 1 },
+      { label: "Pitch Attitude and Bank Angle (Roll Angle)", value: 0 },
     ];
   }
   if (def.id === "nose_heating_model") {

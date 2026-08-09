@@ -5,7 +5,7 @@ This is a desktop application for editing RASOrbit input files (`.dat`).
 It presents the file as a sequence of pages—header, per-stage aerodynamic and engine data,
 launch and trajectory settings—with a page outline on the left and the current page on the right.
 
-This is an add-on program to **RASOrbit**; see [rasaero.com](http://www.rasaero.com) for more info.
+This is an add-on program to **RASOrbit**; see [www.rasaero.com](http://www.rasaero.com) for more info.
 
 ## Download
 

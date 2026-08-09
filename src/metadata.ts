@@ -44,6 +44,8 @@ export interface CountRef {
 export interface ChoiceOption {
   label: string;
   value: number;
+  /** Multi-line radio label; `label` remains a single-line fallback for tests and a11y. */
+  labelLines?: string[];
 }
 
 export interface FieldDef {
