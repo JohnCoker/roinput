@@ -1,6 +1,20 @@
 import { describe, expect, it } from "vitest";
+import { createDefaultStage } from "../src/fieldBinding";
 import { InputFile } from "../src/InputFile";
 import { canonicalPath, validFixtures } from "./fixtures";
+
+describe("partial documents", () => {
+  it("serializes a new in-progress file without validation", () => {
+    const file = new InputFile();
+    file.stages = [createDefaultStage()];
+    const text = file.serialize();
+    const { file: loaded, report } = InputFile.parse(text);
+    expect(report.ok).toBe(true);
+    expect(loaded.stages).toHaveLength(1);
+    expect(loaded.launch.azimuth).toBe(0);
+    expect(loaded.trajectory.time).toHaveLength(2);
+  });
+});
 
 describe.each(validFixtures)("serialize $name", ({ name, dat }) => {
   const { file } = InputFile.parse(dat);

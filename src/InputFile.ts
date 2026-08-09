@@ -16,6 +16,7 @@
 //   original; round-trips are compared on parsed values.
 
 import { field } from "./metadata";
+import type { IssueKind } from "./issueKind";
 
 export type Units = "si" | "english";
 export type AeroType = "clcd" | "cnca";
@@ -122,7 +123,7 @@ export interface Issue {
   stage?: number;
   /** 0-based position within a vector/matrix. */
   index?: number;
-  severity: "error" | "warning";
+  kind: IssueKind;
   message: string;
 }
 
@@ -267,6 +268,11 @@ function emitVector(out: string[], values: number[]): void {
   for (let i = 0; i < values.length; i += 8) {
     out.push(line(values.slice(i, i + 8).map(floatCell)));
   }
+}
+
+function padVector(values: number[], minLength: number): number[] {
+  if (values.length >= minLength) return values;
+  return [...values, ...Array(minLength - values.length).fill(0)];
 }
 
 // ---- line-aware reader --------------------------------------------------------
@@ -584,20 +590,28 @@ export class InputFile {
     for (const stage of this.stages) serializeAero(out, stage);
     this.serializePage9(out);
     for (const stage of this.stages) serializeStageEngine(out, stage);
-    if (this.powered && this.engineHistory) {
-      out.push(line([intCell(this.engineHistory.time.length)]));
-      emitVector(out, this.engineHistory.time);
-      emitVector(out, this.engineHistory.value);
+    if (this.powered) {
+      const minHistory = field("n_history").min ?? 2;
+      const hist = this.engineHistory ?? { time: [], value: [] };
+      const n = Math.max(hist.time.length, minHistory);
+      out.push(line([intCell(n)]));
+      emitVector(out, padVector(hist.time, n));
+      emitVector(out, padVector(hist.value, n));
     }
+    const minTraj = field("n_traj").min ?? 2;
+    const trajN = Math.max(this.trajectory.time.length, minTraj);
+    const trajTime = padVector(this.trajectory.time, trajN);
+    const trajAngle = padVector(this.trajectory.angle, trajN);
+    const trajBank = padVector(this.trajectory.bank, trajN);
     out.push(
       line([
-        intCell(this.trajectory.time.length),
+        intCell(trajN),
         intCell(trajCode(this.trajectory.control)),
       ]),
     );
-    emitVector(out, this.trajectory.time);
-    emitVector(out, this.trajectory.angle);
-    emitVector(out, this.trajectory.bank);
+    emitVector(out, trajTime);
+    emitVector(out, trajAngle);
+    emitVector(out, trajBank);
     // RASOrbit is a Windows program: emit CRLF line endings and the trailing DOS
     // end-of-file marker (Ctrl-Z, 0x1A) that every known-good input file carries.
     return out.map((l) => l + "\r\n").join("") + "\x1a";
@@ -636,9 +650,16 @@ export class InputFile {
 
   // ---- validation -------------------------------------------------------------
 
-  /** Live, on-demand validation. Returns every problem; empty means save-able. */
+  /** Live, on-demand validation for outline status and field hints. */
   validate(): Issue[] {
     const issues: Issue[] = [];
+    if (this.title.trim() === "") {
+      issues.push({
+        fieldId: "title",
+        kind: "missing",
+        message: `${field("title").label} is required`,
+      });
+    }
     const checkNum = (
       id: string,
       v: number | null,
@@ -649,7 +670,7 @@ export class InputFile {
         issues.push({
           fieldId: id,
           ...loc,
-          severity: "error",
+          kind: "missing",
           message: `${def.label} is required`,
         });
         return;
@@ -658,7 +679,7 @@ export class InputFile {
         issues.push({
           fieldId: id,
           ...loc,
-          severity: "error",
+          kind: "invalid",
           message: `${def.label} must be a whole number`,
         });
       }
@@ -666,7 +687,7 @@ export class InputFile {
         issues.push({
           fieldId: id,
           ...loc,
-          severity: "error",
+          kind: "invalid",
           message: `${def.label} must be at least ${def.min}`,
         });
       }
@@ -674,7 +695,7 @@ export class InputFile {
         issues.push({
           fieldId: id,
           ...loc,
-          severity: "error",
+          kind: "invalid",
           message: `${def.label} must be at most ${def.max}`,
         });
       }
@@ -693,6 +714,8 @@ export class InputFile {
       checkVec("weight", stage.weight, sn);
       checkVec("cg", stage.cg, sn);
       checkVec("inertia", stage.inertia, sn);
+      this.checkDefaultZeroCgBlock(issues, stage, sn);
+      this.checkDefaultZeroStageScalars(issues, stage, sn);
       checkNum("tvc_gimbal", stage.tvcGimbal, { stage: sn });
       checkNum("tvc_percent", stage.tvcPercent, { stage: sn });
       checkNum("tvc_maxangle", stage.tvcMaxAngle, { stage: sn });
@@ -722,20 +745,111 @@ export class InputFile {
       if (!this.engineHistory) {
         issues.push({
           fieldId: "n_history",
-          severity: "error",
+          kind: "missing",
           message: "Engine time history is required for a powered vehicle",
         });
       } else {
         checkVec("history_time", this.engineHistory.time);
         checkVec("history_value", this.engineHistory.value);
+        this.checkBreakpointVector(issues, "history_time", this.engineHistory.time);
+        this.checkDefaultZeroVector(issues, "history_value", this.engineHistory.value);
       }
     }
-    checkVec("traj_time", this.trajectory.time);
-    checkVec("traj_angle", this.trajectory.angle);
-    checkVec("traj_bank", this.trajectory.bank);
+    if (this.trajectory.time.length === 0) {
+      issues.push({
+        fieldId: "n_traj",
+        kind: "missing",
+        message: `${field("n_traj").label} is required`,
+      });
+    } else {
+      this.checkBreakpointVector(issues, "traj_time", this.trajectory.time);
+      checkVec("traj_time", this.trajectory.time);
+      checkVec("traj_angle", this.trajectory.angle);
+      checkVec("traj_bank", this.trajectory.bank);
+    }
 
     this.crossFieldChecks(issues);
     return issues;
+  }
+
+  private allZero(values: number[]): boolean {
+    return values.length > 0 && values.every((v) => v === 0);
+  }
+
+  private pushDefaultZeros(
+    issues: Issue[],
+    id: string,
+    stage?: number,
+  ): void {
+    const def = field(id);
+    issues.push({
+      fieldId: id,
+      stage,
+      kind: "placeholder",
+      message: `${def.label} still has default zero values`,
+    });
+  }
+
+  /** True when a placeholder issue was added. */
+  private checkDefaultZeroVector(
+    issues: Issue[],
+    id: string,
+    values: number[],
+    stage?: number,
+  ): boolean {
+    if (!this.allZero(values)) return false;
+    this.pushDefaultZeros(issues, id, stage);
+    return true;
+  }
+
+  private looksLikeDefaultAeroBreakpoints(stage: Stage): boolean {
+    return this.allZero(stage.aoa) && this.allZero(stage.mach);
+  }
+
+  /** Weight/CG/inertia all zero only flags WIP when aero breakpoints are still template zeros. */
+  private checkDefaultZeroCgBlock(
+    issues: Issue[],
+    stage: Stage,
+    stageNo: number,
+  ): void {
+    if (!this.looksLikeDefaultAeroBreakpoints(stage)) return;
+    if (
+      !this.allZero(stage.weight) ||
+      !this.allZero(stage.cg) ||
+      !this.allZero(stage.inertia)
+    ) {
+      return;
+    }
+    this.pushDefaultZeros(issues, "weight", stageNo);
+  }
+
+  private checkDefaultZeroStageScalars(
+    issues: Issue[],
+    stage: Stage,
+    stageNo: number,
+  ): void {
+    if (!this.looksLikeDefaultAeroBreakpoints(stage)) return;
+    const n = (v: number | null) => v ?? 0;
+    if (
+      n(stage.startTime) !== 0 ||
+      n(stage.refArea) !== 0 ||
+      n(stage.initialWeight) !== 0 ||
+      n(stage.burnoutWeight) !== 0
+    ) {
+      return;
+    }
+    this.pushDefaultZeros(issues, "stage_start_time", stageNo);
+  }
+
+  /** Breakpoint vectors: all-zero is one placeholder; otherwise enforce uniqueness. */
+  private checkBreakpointVector(
+    issues: Issue[],
+    id: string,
+    values: number[],
+    stage?: number,
+  ): void {
+    if (this.checkDefaultZeroVector(issues, id, values, stage)) return;
+    this.checkUniqueValues(issues, id, values, stage);
   }
 
   private checkUniqueValues(
@@ -752,7 +866,7 @@ export class InputFile {
           fieldId: id,
           stage,
           index,
-          severity: "error",
+          kind: "placeholder",
           message: `${def.label} values must be unique`,
         });
       } else {
@@ -770,7 +884,7 @@ export class InputFile {
     ) {
       issues.push({
         fieldId: "printout_rate",
-        severity: "error",
+        kind: "invalid",
         message:
           "Printout rate must be at least the integration time step",
       });
@@ -778,21 +892,21 @@ export class InputFile {
     if (l.integrationTimeStep !== null && l.integrationTimeStep === 0) {
       issues.push({
         fieldId: "integration_time_step",
-        severity: "error",
+        kind: "invalid",
         message: "Integration time step must not be zero",
       });
     }
     if (l.printoutRate !== null && l.printoutRate === 0) {
       issues.push({
         fieldId: "printout_rate",
-        severity: "error",
+        kind: "invalid",
         message: "Printout rate must not be zero",
       });
     }
     if (l.totalTime !== null && l.totalTime === 0) {
       issues.push({
         fieldId: "total_time",
-        severity: "error",
+        kind: "invalid",
         message: "Total time must not be zero",
       });
     }
@@ -803,7 +917,7 @@ export class InputFile {
     ) {
       issues.push({
         fieldId: "initial_heading_azimuth",
-        severity: "error",
+        kind: "invalid",
         message: "Initial heading/azimuth must equal launch azimuth",
       });
     }
@@ -811,7 +925,7 @@ export class InputFile {
       issues.push({
         fieldId: "history_time",
         index: 0,
-        severity: "error",
+        kind: "invalid",
         message: "The first engine-history time must be 0",
       });
     }
@@ -819,7 +933,7 @@ export class InputFile {
       issues.push({
         fieldId: "traj_time",
         index: 0,
-        severity: "error",
+        kind: "invalid",
         message: "The first trajectory time must be 0",
       });
     }
@@ -831,7 +945,7 @@ export class InputFile {
     if (distinct.size > 1) {
       issues.push({
         fieldId: "engine_type",
-        severity: "error",
+        kind: "invalid",
         message:
           "All powered stages must use the same engine model (no mixing of chamber-pressure and thrust-history)",
       });
@@ -842,7 +956,7 @@ export class InputFile {
         issues.push({
           fieldId: "engine_type",
           stage: i + 1,
-          severity: "error",
+          kind: "invalid",
           message:
             "Only the last stage of a powered vehicle may have no engine",
         });
@@ -851,13 +965,9 @@ export class InputFile {
 
     this.stages.forEach((stage, si) => {
       const sn = si + 1;
-      this.checkUniqueValues(issues, "aoa", stage.aoa, sn);
-      this.checkUniqueValues(issues, "mach", stage.mach, sn);
+      this.checkBreakpointVector(issues, "aoa", stage.aoa, sn);
+      this.checkBreakpointVector(issues, "mach", stage.mach, sn);
     });
-    if (this.engineHistory) {
-      this.checkUniqueValues(issues, "history_time", this.engineHistory.time);
-    }
-    this.checkUniqueValues(issues, "traj_time", this.trajectory.time);
   }
 }
 
@@ -1015,7 +1125,7 @@ function validateEngine(
       issues.push({
         fieldId: id,
         stage,
-        severity: "error",
+        kind: "invalid",
         message: `${def.label} must be at least ${def.min}`,
       });
     }
@@ -1023,7 +1133,7 @@ function validateEngine(
       issues.push({
         fieldId: id,
         stage,
-        severity: "error",
+        kind: "invalid",
         message: `${def.label} must be at most ${def.max}`,
       });
     }
@@ -1046,11 +1156,6 @@ function validateEngine(
   }
 }
 
-function req(v: number | null, id: string): number {
-  if (v === null) {
-    throw new Error(
-      `Cannot serialize: ${field(id).label} is missing. Validate before saving.`,
-    );
-  }
-  return v;
+function req(v: number | null, _id: string): number {
+  return v ?? 0;
 }

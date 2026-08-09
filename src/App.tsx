@@ -109,14 +109,6 @@ function App({ theme }: AppProps) {
     const file = documentFileRef.current;
     let content = stateRef.current.documentContent;
     if (file) {
-      const issues = file.validate();
-      if (issues.length > 0) {
-        await showDialogMessage(
-          "Fix validation errors before saving.",
-          { title: "Cannot save file", kind: "error" },
-        );
-        return false;
-      }
       content = file.serialize();
     }
     try {
@@ -143,14 +135,6 @@ function App({ theme }: AppProps) {
     const file = documentFileRef.current;
     let content = stateRef.current.documentContent;
     if (file) {
-      const issues = file.validate();
-      if (issues.length > 0) {
-        await showDialogMessage(
-          "Fix validation errors before saving.",
-          { title: "Cannot save file", kind: "error" },
-        );
-        return false;
-      }
       content = file.serialize();
     }
     try {
@@ -356,6 +340,10 @@ function App({ theme }: AppProps) {
 
   const upgradeBar = <UpgradeNotificationBar />;
 
+  const handleEditorReady = useCallback((file: InputFile) => {
+    documentFileRef.current = file;
+  }, []);
+
   const handleEditorChange = useCallback((file: InputFile) => {
     documentFileRef.current = file;
     setDocumentDirty(true);
@@ -366,6 +354,7 @@ function App({ theme }: AppProps) {
       key={editorKey}
       theme={theme}
       initialText={documentContent}
+      onFileReady={handleEditorReady}
       onChange={handleEditorChange}
     />
   ) : (

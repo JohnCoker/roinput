@@ -26,6 +26,7 @@ import {
   writeScalar,
   writeVectorElement,
 } from "./fieldBinding";
+import { fieldValidationFromIssues } from "./issueKind";
 
 const VECTOR_COLS = 8;
 
@@ -143,22 +144,11 @@ function issuesForField(
   );
 }
 
-function fieldError(issues: Issue[]): string | undefined {
-  const err = issues.find((i) => i.severity === "error");
-  return err?.message;
-}
-
-function fieldValidation(issues: Issue[]): {
+function fieldValidation(issues: Issue[], fieldId: string): {
   message?: string;
   state: "none" | "error" | "warning";
 } {
-  if (issues.length === 0) return { state: "none" };
-  const message = fieldError(issues);
-  const softOnly = issues.every(
-    (i) =>
-      i.message.endsWith(" is required") || i.message.includes("must be unique"),
-  );
-  return { message, state: softOnly ? "warning" : "error" };
+  return fieldValidationFromIssues(issues, fieldId);
 }
 
 type EditableNumericInputProps = Omit<
@@ -293,7 +283,7 @@ function ScalarControl({
 }: ScalarControlProps) {
   const styles = useStyles();
   const errs = issuesForField(issues, def.id, stage);
-  const { message: validationMessage, state: validationState } = fieldValidation(errs);
+  const { message: validationMessage, state: validationState } = fieldValidation(errs, def.id);
 
   if (fieldHidden(file, def)) return null;
 
@@ -344,23 +334,13 @@ function ScalarControl({
 
     if (part === "control") {
       return (
-        <div className={styles.choiceControlOnly}>
+        <Field
+          className={styles.choiceControlOnly}
+          validationState={validationState}
+          validationMessage={validationMessage}
+        >
           {radioGroup}
-          {validationMessage ? (
-            <Text
-              size={200}
-              style={{
-                marginTop: tokens.spacingVerticalXXS,
-                color:
-                  validationState === "error"
-                    ? tokens.colorPaletteRedForeground1
-                    : tokens.colorNeutralForeground3,
-              }}
-            >
-              {validationMessage}
-            </Text>
-          ) : null}
-        </div>
+        </Field>
       );
     }
 
@@ -412,7 +392,15 @@ function ScalarControl({
   );
 
   if (part === "control") {
-    return numericInput;
+    return (
+      <Field
+        className={styles.fieldShell}
+        validationState={validationState}
+        validationMessage={validationMessage}
+      >
+        {numericInput}
+      </Field>
+    );
   }
 
   return (
@@ -437,7 +425,7 @@ function VectorControl({ def, file, stage, issues, onUpdate }: VectorControlProp
   const styles = useStyles();
   const values = readVector(file, def.id, stage);
   const fieldIssues = issuesForField(issues, def.id, stage);
-  const { message: validationMessage, state: validationState } = fieldValidation(fieldIssues);
+  const { message: validationMessage, state: validationState } = fieldValidation(fieldIssues, def.id);
   const machLabels = machColumnLabels(file, def, stage);
   const label = displayLabel(file, def);
   const chunkCols = def.id === "mach" ? Math.max(values.length, 1) : VECTOR_COLS;
@@ -490,8 +478,10 @@ function VectorControl({ def, file, stage, issues, onUpdate }: VectorControlProp
                         title={formatScalarValue(values[index], def)}
                         aria-label={`${label} ${index + 1}`}
                         aria-invalid={
-                          fieldValidation(issuesForField(issues, def.id, stage, index))
-                            .state !== "none"
+                          fieldValidation(
+                            issuesForField(issues, def.id, stage, index),
+                            def.id,
+                          ).state !== "none"
                         }
                         onCommit={(raw) => {
                           onUpdate((f) =>
@@ -526,6 +516,7 @@ function MatrixControl({ def, file, stage, issues, onUpdate }: MatrixControlProp
   const aoa = readVector(file, "aoa", stage);
   const { message: validationMessage, state: validationState } = fieldValidation(
     issuesForField(issues, def.id, stage),
+    def.id,
   );
 
   if (matrix.length === 0 || aoa.length === 0) {

@@ -40,12 +40,13 @@ Other platforms may be built from [source](https://github.com/johncoker/roinput/
 
 5. **Check status**:
    - The outline marks pages as complete, incomplete, or in error.
+   - Incomplete means required or placeholder data is still unset; error means a value looks invalid for RASOrbit.
    - Invalid values are highlighted on the page.
    - A dot in the window title means the file has unsaved changes.
-   - Save is blocked while validation errors remain.
 
 6. **Save**:
    - Use **File → Save** or **File → Save As…** to write the file back out.
+   - You can save work in progress and finish later; unfilled fields are written as zero.
    - Closing or opening another file with unsaved changes prompts to save first.
 
 7. **Help**:

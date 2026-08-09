@@ -2,6 +2,7 @@
 
 import { fields, type FieldDef, type WhenCondition } from "./metadata";
 import type { InputFile, Issue, Stage } from "./InputFile";
+import { outlineStatusFromIssues } from "./issueKind";
 import {
   AERO_BREAKPOINT_DEPENDENT_PAGE_IDS,
   AERO_PAGE_IDS,
@@ -107,14 +108,8 @@ function issueApplies(issue: Issue, pageId: PageId, stage?: number): boolean {
   return issue.stage === undefined;
 }
 
-function isIncompleteIssue(issue: Issue): boolean {
-  const msg = issue.message;
-  return msg.endsWith(" is required") || msg.includes("must be unique");
-}
-
 function statusFromIssues(issues: Issue[]): NodeStatus {
-  if (issues.length === 0) return "complete";
-  return issues.every(isIncompleteIssue) ? "incomplete" : "error";
+  return outlineStatusFromIssues(issues);
 }
 
 function aggregateStatus(children: NavNode[]): NodeStatus {

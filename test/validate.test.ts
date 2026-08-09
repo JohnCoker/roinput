@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createDefaultStage } from "../src/fieldBinding";
 import {
   InputFile,
   type ChamberPressureEngine,
@@ -93,19 +94,47 @@ describe("validation rules", () => {
     ).toBe(true);
   });
 
+  it("classifies common WIP issues by kind", () => {
+    const fresh = new InputFile();
+    fresh.stages = [createDefaultStage()];
+    const issues = fresh.validate();
+    expect(issues.find((i) => i.fieldId === "title")?.kind).toBe("missing");
+    expect(issues.find((i) => i.fieldId === "launch_azimuth")?.kind).toBe("missing");
+    expect(issues.find((i) => i.fieldId === "aoa")?.kind).toBe("placeholder");
+    expect(issues.find((i) => i.fieldId === "weight")?.kind).toBe("placeholder");
+    expect(issues.find((i) => i.fieldId === "n_traj")?.kind).toBe("missing");
+
+    const reloaded = InputFile.parse(fresh.serialize()).file;
+    const afterSave = reloaded.validate();
+    expect(afterSave.find((i) => i.fieldId === "integration_time_step")?.kind).toBe(
+      "invalid",
+    );
+    expect(afterSave.find((i) => i.fieldId === "traj_time" && i.index === 1)).toBeUndefined();
+    expect(afterSave.find((i) => i.fieldId === "traj_time")?.kind).toBe("placeholder");
+  });
+
   it("reports required fields missing on an empty file", () => {
     expect(new InputFile().validate().length).toBeGreaterThan(0);
   });
 
-  it("flags duplicate angles of attack", () => {
+  it("flags duplicate angles of attack when not all zeros", () => {
     const f = loadX15();
     f.stages[0].aoa[1] = f.stages[0].aoa[0];
     const issues = f.validate();
     expect(
       issues.some(
-        (e) => e.fieldId === "aoa" && e.index === 1 && /must be unique/.test(e.message),
+        (e) => e.fieldId === "aoa" && e.index === 1 && e.kind === "placeholder",
       ),
     ).toBe(true);
+  });
+
+  it("uses one default-zero placeholder for an all-zero angle-of-attack vector", () => {
+    const f = new InputFile();
+    f.stages = [createDefaultStage()];
+    const aoaIssues = f.validate().filter((i) => i.fieldId === "aoa");
+    expect(aoaIssues).toHaveLength(1);
+    expect(aoaIssues[0].kind).toBe("placeholder");
+    expect(aoaIssues[0].message).toContain("default zero");
   });
 
   it("flags duplicate Mach numbers", () => {

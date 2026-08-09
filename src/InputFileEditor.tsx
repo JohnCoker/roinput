@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useState } from "react";
 import type { Theme } from "@fluentui/react-theme";
 import { applyDerivedValues, cloneInputFile, createDefaultStage } from "./fieldBinding";
 import { InputFile } from "./InputFile";
@@ -29,6 +29,8 @@ export interface InputFileEditorProps {
   theme: Theme;
   /** Raw `.dat` text when a document is opened or created. */
   initialText: string;
+  /** Called once when the editor model is ready (does not mark the document dirty). */
+  onFileReady?: (file: InputFile) => void;
   /** Called when the user edits the model (not fired on initial load). */
   onChange?: (file: InputFile) => void;
 }
@@ -36,10 +38,17 @@ export interface InputFileEditorProps {
 export function InputFileEditor({
   theme,
   initialText,
+  onFileReady,
   onChange,
 }: InputFileEditorProps) {
   const [file, setFile] = useState(() => parseDocument(initialText));
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  useLayoutEffect(() => {
+    onFileReady?.(file);
+    // Once per editor mount; App remounts via editorKey on new/open.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- initial model only
+  }, []);
 
   const issues = useMemo(() => file.validate(), [file]);
   const navTree = useMemo(() => buildNavTree(file, issues), [file, issues]);

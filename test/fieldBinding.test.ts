@@ -225,10 +225,14 @@ describe("n_stages resize", () => {
     writeScalar(working, "n_stages", 5);
     const issues = working.validate();
     expect(
-      issues.some((i) => i.stage === 5 && i.fieldId === "aoa" && /unique/.test(i.message)),
+      issues.some(
+        (i) => i.stage === 5 && i.fieldId === "aoa" && /default zero/.test(i.message),
+      ),
     ).toBe(true);
     expect(
-      issues.some((i) => i.stage === 5 && i.fieldId === "mach" && /unique/.test(i.message)),
+      issues.some(
+        (i) => i.stage === 5 && i.fieldId === "mach" && /default zero/.test(i.message),
+      ),
     ).toBe(true);
 
     const tree = buildNavTree(working, issues);
@@ -236,8 +240,9 @@ describe("n_stages resize", () => {
     expect(findNavNode(tree, "normal_force_coef-s5")?.status).toBe("incomplete");
     expect(findNavNode(tree, "axial_force_coef-s5")?.status).toBe("incomplete");
     expect(findNavNode(tree, "center_of_pressure-s5")?.status).toBe("incomplete");
-    expect(findNavNode(tree, "cg_and_inertia-s5")?.status).toBe("complete");
+    expect(findNavNode(tree, "cg_and_inertia-s5")?.status).toBe("incomplete");
     expect(findNavNode(tree, "thrust_vectoring-s5")?.status).toBe("complete");
+    expect(findNavNode(tree, "stage_data-s5")?.status).toBe("incomplete");
 
     writeVectorElement(working, "aoa", 0, "1", 5);
     writeVectorElement(working, "aoa", 1, "2", 5);
