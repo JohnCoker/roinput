@@ -74,16 +74,79 @@ describe("validation rules", () => {
     ).toBe(true);
   });
 
-  it("flags mixed engine models", () => {
+  it("flags a later stage whose engine model differs from stage 1", () => {
     const f = loadMulti();
-    f.stages[f.stages.length - 1].engine = zeroCpEngine();
+    expect(f.stages[0].engine.kind).toBe("thrustHistory");
+    f.stages[1].engine = zeroCpEngine();
+    const mismatches = f
+      .validate()
+      .filter((e) => e.fieldId === "engine_type" && e.kind === "invalid");
+    expect(mismatches).toEqual([
+      expect.objectContaining({
+        stage: 2,
+        message: "Thrust Time History Model must be selected",
+      }),
+    ]);
+  });
+
+  it("names the chamber pressure model when stage 1 uses it", () => {
+    const f = loadMulti();
+    f.stages[0].engine = zeroCpEngine();
+    const mismatches = f
+      .validate()
+      .filter((e) => e.fieldId === "engine_type" && e.kind === "invalid");
+    expect(mismatches.map((e) => e.stage)).toEqual(
+      f.stages.slice(1).filter((s) => s.engine.kind !== "none").map((_, i) => i + 2),
+    );
+    expect(mismatches.every((e) => e.message === "Model Using Chamber Pressure must be selected")).toBe(true);
+  });
+
+  it("flags a later stage immediately when it has not chosen stage 1's model", () => {
+    const f = loadMulti();
+    expect(f.stages[0].engine.kind).toBe("thrustHistory");
+    f.stages[1].engine = { kind: "none" };
+    const issues = f
+      .validate()
+      .filter((e) => e.fieldId === "engine_type" && e.stage === 2);
+    expect(issues.some((e) => e.message === "Thrust Time History Model must be selected")).toBe(
+      true,
+    );
+  });
+
+  it("allows a last-stage glider without the model-mismatch error", () => {
+    const f = loadMulti();
+    const last = f.stages.length;
+    f.stages[last - 1].engine = { kind: "none" };
+    const issues = f
+      .validate()
+      .filter((e) => e.fieldId === "engine_type" && e.stage === last);
+    expect(issues.some((e) => /must be selected/.test(e.message))).toBe(false);
+  });
+
+  it("words engine-history warnings for the selected engine model", () => {
+    const f = new InputFile();
+    f.stages = [createDefaultStage()];
+    f.stages[0].engine = zeroCpEngine();
+    f.engineHistory = { time: [0, 1], value: [0, 0] };
     expect(
-      f
-        .validate()
-        .some(
-          (e) => e.fieldId === "engine_type" && /same engine model/.test(e.message),
-        ),
-    ).toBe(true);
+      f.validate().find((e) => e.fieldId === "history_value")?.message,
+    ).toBe("Chamber Pressure still has default zero values");
+    f.stages[0].engine = { kind: "thrustHistory", burnTime: 1, nozzleExitArea: 1, refAtmPressure: 1, negativeThrust: false };
+    expect(
+      f.validate().find((e) => e.fieldId === "history_value")?.message,
+    ).toBe("Thrust still has default zero values");
+  });
+
+  it("words launch warnings with the label for the launch mode", () => {
+    const f = new InputFile();
+    f.stages = [createDefaultStage()];
+    expect(f.validate().find((e) => e.fieldId === "launch_azimuth")?.message).toBe(
+      "Initial Heading is required",
+    );
+    f.launch.mode = "vertical";
+    expect(f.validate().find((e) => e.fieldId === "launch_azimuth")?.message).toBe(
+      "Launch Azimuth is required",
+    );
   });
 
   it("flags initial heading when it differs from launch azimuth", () => {

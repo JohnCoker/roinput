@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 tmp/
+reviews/
 
 # Editor directories and files
 .vscode/*

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { displayLabel } from "../src/fieldBinding";
+import { displayLabel } from "../src/labels";
 import { InputFile } from "../src/InputFile";
 import { field } from "../src/metadata";
 import { PAGE_IDS, pageRows, resolvePageCopy } from "../src/pages";

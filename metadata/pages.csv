@@ -42,7 +42,7 @@ stage_data,11,per_stage,stage_engine,,default,Stage Data,"Enter stage timing, ae
 
 Negative thrust is for fly-back boosters."
 engine_time_history,12,fixed,,any(engine_type>0),default,Engine Time History,Enter engine time history points.,First time must be zero. Last time may be less than the total time for the trajectory run.
-engine_time_history,12,fixed,,any(engine_type>0),engine_type=1,Chamber Pressure Time History,Enter chamber pressure versus time (chamber pressure time history).,
+engine_time_history,12,fixed,,any(engine_type>0),engine_type=1,Chamber Pressure Time History,Enter chamber pressure versus time (the chamber pressure time history).,
 engine_time_history,12,fixed,,any(engine_type>0),engine_type=2,Thrust Time History,Enter thrust versus time (the thrust curve).,
 trajectory_control,13,fixed,,,default,Trajectory Control,Enter trajectory control time history points.,First time must be zero. Last time must be equal to the total run time for the trajectory.
 trajectory_control,13,fixed,,,traj_control=0,Pitch Attitude and Bank Angle Time History,,

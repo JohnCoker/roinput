@@ -14,8 +14,7 @@ import type { FieldDef } from "./metadata";
 import type { InputFile, Issue } from "./InputFile";
 import {
   choiceOptions,
-  displayLabel,
-  displayLabelLines,
+  countLimitMessage,
   fieldHidden,
   fieldReadOnly,
   formatScalarValue,
@@ -27,8 +26,10 @@ import {
   writeVectorElement,
 } from "./fieldBinding";
 import { fieldValidationFromIssues } from "./issueKind";
+import { displayLabel, displayLabelLines } from "./labels";
 
 const VECTOR_COLS = 8;
+const TITLE_MAX_LENGTH = 80;
 
 const useStyles = makeStyles({
   tableWrap: {
@@ -88,15 +89,14 @@ const useStyles = makeStyles({
   },
   engineTypeRadioGroup: {
     rowGap: tokens.spacingVerticalM,
+    paddingTop: tokens.spacingVerticalM,
+    paddingBottom: tokens.spacingVerticalM,
   },
   columnInput: {
     width: "100%",
     maxWidth: "100%",
     minWidth: 0,
     boxSizing: "border-box",
-  },
-  titleInput: {
-    maxWidth: "80ch",
   },
   choiceRadioLabel: {
     display: "flex",
@@ -184,6 +184,7 @@ function EditableNumericInput({
 
   return (
     <Input
+      autoComplete="off"
       {...inputProps}
       readOnly={readOnly}
       className={className}
@@ -282,8 +283,11 @@ function ScalarControl({
   part = "full",
 }: ScalarControlProps) {
   const styles = useStyles();
+  const [limitMessage, setLimitMessage] = useState<string | null>(null);
   const errs = issuesForField(issues, def.id, stage);
-  const { message: validationMessage, state: validationState } = fieldValidation(errs, def.id);
+  const { message: validationMessage, state: validationState } = limitMessage
+    ? { message: limitMessage, state: "warning" as const }
+    : fieldValidation(errs, def.id);
 
   if (fieldHidden(file, def)) return null;
 
@@ -361,12 +365,16 @@ function ScalarControl({
         className={styles.fieldShell}
       >
         <Input
-          className={mergeClasses(styles.columnInput, styles.titleInput)}
+          className={styles.columnInput}
           value={file.title}
-          maxLength={80}
+          autoComplete="off"
           onChange={(_, data) => {
+            const tooLong = data.value.length > TITLE_MAX_LENGTH;
+            setLimitMessage(
+              tooLong ? `Title limit is ${TITLE_MAX_LENGTH} characters` : null,
+            );
             onUpdate((f) => {
-              f.title = data.value;
+              f.title = data.value.slice(0, TITLE_MAX_LENGTH);
             });
           }}
         />
@@ -376,7 +384,7 @@ function ScalarControl({
 
   const raw = readScalar(file, def.id, stage);
   const display = formatScalarValue(raw, def);
-  const readOnly = fieldReadOnly(def);
+  const readOnly = fieldReadOnly(file, def);
 
   const numericInput = (
     <EditableNumericInput
@@ -386,6 +394,14 @@ function ScalarControl({
       inputMode={def.type === "int" ? "numeric" : "decimal"}
       onCommit={(raw) => {
         if (readOnly) return;
+        if (def.type === "int") {
+          const n = Number(raw.trim());
+          setLimitMessage(
+            raw.trim() !== "" && Number.isInteger(n)
+              ? countLimitMessage(file, def, n)
+              : null,
+          );
+        }
         onUpdate((f) => writeScalar(f, def.id, raw, stage));
       }}
     />

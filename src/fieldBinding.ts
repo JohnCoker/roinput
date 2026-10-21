@@ -1,11 +1,11 @@
-import type { FieldDef } from "./metadata";
-import type { ChoiceOption } from "./metadata";
+import { field, type ChoiceOption, type FieldDef } from "./metadata";
 import {
   InputFile,
   formatFloat,
   type Stage,
   type StageEngine,
 } from "./InputFile";
+import { displayName } from "./labels";
 
 function defaultStage(): Stage {
   const aoaLen = 3;
@@ -27,6 +27,7 @@ function defaultStage(): Stage {
     tvcGimbal: 0,
     tvcPercent: 0,
     tvcMaxAngle: 0,
+    tvcVisited: false,
     startTime: 0,
     refArea: 0,
     initialWeight: 0,
@@ -77,6 +78,7 @@ function cloneStage(s: Stage): Stage {
     tvcGimbal: s.tvcGimbal,
     tvcPercent: s.tvcPercent,
     tvcMaxAngle: s.tvcMaxAngle,
+    tvcVisited: s.tvcVisited,
     startTime: s.startTime,
     refArea: s.refArea,
     initialWeight: s.initialWeight,
@@ -192,7 +194,28 @@ function setNTraj(file: InputFile, n: number): void {
   file.trajectory.bank = resizeArray(file.trajectory.bank, n, 0);
 }
 
+/** Powered model already chosen on an earlier stage, if any. */
+function requiredEngineKind(
+  file: InputFile,
+  stage: number,
+): "chamberPressure" | "thrustHistory" | undefined {
+  const earlier = file.stages.slice(0, Math.max(0, stage - 1));
+  const ref = earlier.find((s) => s.engine.kind !== "none");
+  if (ref?.engine.kind === "chamberPressure") return "chamberPressure";
+  if (ref?.engine.kind === "thrustHistory") return "thrustHistory";
+  return undefined;
+}
+
 function setEngineType(file: InputFile, stage: number, t: 0 | 1 | 2): void {
+  // Later stages may not switch to the other powered model (PDF 5). Glider is
+  // only allowed on the last stage; clicks on No Engine do not take otherwise.
+  const required = requiredEngineKind(file, stage);
+  const isLast = stage === file.stages.length;
+  if (t === 0 && required && !isLast) return;
+  if (t === 1 || t === 2) {
+    if (required === "thrustHistory" && t === 1) return;
+    if (required === "chamberPressure" && t === 2) return;
+  }
   const s = stageAt(file, stage);
   if (t === 0) s.engine = { kind: "none" };
   else if (t === 1) s.engine = defaultChamberEngine();
@@ -208,196 +231,11 @@ export function applyDerivedValues(file: InputFile): void {
     file.launch.initialHeadingAzimuth = file.launch.azimuth;
   }
   if (file.launch.mode === "vertical") {
+    file.launch.initialVelocity = 0;
     file.launch.initialPitch = 90;
     file.launch.initialBank = 0;
     file.launch.initialAoa = 0;
   }
-}
-
-export function displayLabelLines(file: InputFile, def: FieldDef): string[] | null {
-  const fromNose =
-    file.units === "english" ? "inches from nose tip" : "meters from nose tip";
-  switch (def.id) {
-    case "tvc_gimbal":
-      return ["Thrust Vectoring Gimbal Location", `(${fromNose})`];
-    case "tvc_percent":
-      return [
-        "Percent of Thrust for Pitch Thrust Vectoring",
-        "Enter 1.0 for 100%, 0.5 for 50%",
-      ];
-    case "tvc_maxangle":
-      return ["Maximum Thrust Vector Angle (deg)", ""];
-    default:
-      return null;
-  }
-}
-
-export function displayLabel(file: InputFile, def: FieldDef): string {
-  const labelLines = displayLabelLines(file, def);
-  if (labelLines) {
-    return labelLines.filter((line) => line.length > 0).join(" ");
-  }
-  if (def.id === "initial_heading_azimuth") {
-    return file.launch.mode === "conventional"
-      ? "Initial Heading"
-      : "Initial Heading/Azimuth";
-  }
-  if (def.id === "traj_angle") {
-    return file.trajectory.control === "aoaBank"
-      ? "Angle of Attack (deg)"
-      : "Pitch Attitude (deg)";
-  }
-  if (def.id === "traj_time") {
-    return "Time (sec)";
-  }
-  if (def.id === "traj_bank") {
-    return "Bank Angle (Roll Angle) (deg)";
-  }
-  if (def.id === "history_time") {
-    return "Time (sec)";
-  }
-  if (def.id === "n_history") {
-    const powered = file.stages.find((s) => s.engine.kind !== "none");
-    if (powered?.engine.kind === "thrustHistory") {
-      return "Number of Thrust Time History Points";
-    }
-    if (powered?.engine.kind === "chamberPressure") {
-      return "Number of Chamber Pressure Time History Points";
-    }
-  }
-  if (def.id === "history_value") {
-    const powered = file.stages.find((s) => s.engine.kind !== "none");
-    if (powered?.engine.kind === "thrustHistory") {
-      return file.units === "english" ? "Thrust (lbs)" : "Thrust (newtons)";
-    }
-    if (powered?.engine.kind === "chamberPressure") {
-      return file.units === "english"
-        ? "Chamber Pressure (psi)"
-        : "Chamber Pressure (MPa)";
-    }
-  }
-  if (def.id === "initial_altitude") {
-    return file.units === "english"
-      ? "Initial Altitude (ft) - Above Sea Level"
-      : "Initial Altitude (m) - Above Sea Level";
-  }
-  if (def.id === "initial_bank") {
-    return "Initial Bank Angle (Roll Angle) (deg)";
-  }
-  if (def.id === "printout_rate") {
-    return "Printout Output Rate (every x sec)";
-  }
-  if (def.id === "integration_time_step" || def.id === "total_time") {
-    return `${def.label} (sec)`;
-  }
-  if (
-    def.id === "geodetic_latitude" ||
-    def.id === "longitude" ||
-    def.id === "initial_pitch" ||
-    def.id === "initial_aoa"
-  ) {
-    return `${def.label} (deg)`;
-  }
-  if (def.id === "launch_azimuth") {
-    return file.launch.mode === "conventional"
-      ? "Initial Heading (deg)"
-      : "Launch Azimuth (deg)";
-  }
-
-  const fromNose = file.units === "english" ? "inches from nose tip" : "meters from nose tip";
-  if (def.id === "cp") {
-    const base =
-      file.aeroType === "clcd"
-        ? "Center of Pressure (CP)"
-        : def.label;
-    return `${base} – (${fromNose})`;
-  }
-  if (def.id === "cg") {
-    return `Center of Gravity (CG) – (${fromNose})`;
-  }
-  if (file.units === "english") {
-    switch (def.id) {
-      case "weight":
-        return "Weight (lbs)";
-      case "inertia":
-        return "Pitch Inertia (slug-ft²)";
-      case "initial_velocity":
-        return `${def.label} (ft/sec)`;
-      case "nose_radius":
-        return `${def.label} (ft)`;
-      case "stage_start_time":
-      case "chp_burn_time":
-      case "tth_burn_time":
-        return `${def.label} (sec)`;
-      case "aero_ref_area":
-      case "throat_area":
-      case "nozzle_exit_area":
-        return `${def.label} (ft²)`;
-      case "stage_initial_weight":
-      case "stage_burnout_weight":
-      case "ref_thrust":
-        return `${def.label} (lbs)`;
-      case "ref_specific_impulse":
-        return `${def.label} (sec)`;
-      case "ref_chamber_pressure":
-      case "ref_atm_pressure":
-      case "tth_ref_atm_pressure":
-        return `${def.label} (psi)`;
-      case "nozzle_expansion_ratio":
-      case "ratio_specific_heats":
-      case "thrust_coeff_ratio":
-        return `${def.label} (n.d.)`;
-      case "nozzle_divergence_half_angle":
-        return `${def.label} (deg)`;
-      default:
-        break;
-    }
-  } else {
-    switch (def.id) {
-      case "weight":
-        return "Weight (kg)";
-      case "inertia":
-        return "Pitch Inertia (kg-m²)";
-      case "initial_velocity":
-        return `${def.label} (m/sec)`;
-      case "nose_radius":
-        return `${def.label} (m)`;
-      case "stage_start_time":
-      case "chp_burn_time":
-      case "tth_burn_time":
-        return `${def.label} (sec)`;
-      case "aero_ref_area":
-      case "throat_area":
-      case "nozzle_exit_area":
-        return `${def.label} (m²)`;
-      case "stage_initial_weight":
-      case "stage_burnout_weight":
-        return `${def.label} (kg)`;
-      case "ref_thrust":
-        return `${def.label} (newtons)`;
-      case "ref_specific_impulse":
-        return `${def.label} (sec)`;
-      case "ref_chamber_pressure":
-      case "ref_atm_pressure":
-      case "tth_ref_atm_pressure":
-        return `${def.label} (MPa)`;
-      case "nozzle_expansion_ratio":
-      case "ratio_specific_heats":
-      case "thrust_coeff_ratio":
-        return `${def.label} (n.d.)`;
-      case "nozzle_divergence_half_angle":
-        return `${def.label} (deg)`;
-      default:
-        break;
-    }
-  }
-
-  if (file.aeroType === "clcd") {
-    if (def.id === "cn") return "Lift Coefficient (CL)";
-    if (def.id === "ca") return "Drag Coefficient (CD)";
-    if (def.id === "dca_off") return "Power-Off Delta Drag Coefficient";
-  }
-  return def.label;
 }
 
 /** Long or comma-containing choice labels (radio: splits options on `,`). */
@@ -443,8 +281,40 @@ export function fieldHidden(file: InputFile, def: FieldDef): boolean {
   return false;
 }
 
-export function fieldReadOnly(def: FieldDef): boolean {
+const VERTICAL_LAUNCH_LOCKED = new Set([
+  "initial_velocity",
+  "initial_pitch",
+  "initial_bank",
+  "initial_aoa",
+]);
+
+export function fieldReadOnly(file: InputFile, def: FieldDef): boolean {
+  if (file.launch.mode === "vertical" && VERTICAL_LAUNCH_LOCKED.has(def.id)) {
+    return true;
+  }
   return def.id === "initial_heading_azimuth";
+}
+
+/** Warning for a count outside its metadata bounds, or null when in range. */
+export function countLimitMessage(
+  file: InputFile,
+  def: FieldDef,
+  value: number,
+): string | null {
+  if (def.max !== undefined && value > def.max) {
+    return def.id === "n_stages"
+      ? `Limit for the Number of Stages is ${def.max}`
+      : `Maximum ${displayName(file, def)} is ${def.max}`;
+  }
+  if (def.min !== undefined && value < def.min) {
+    return `Minimum ${displayName(file, def)} is ${def.min}`;
+  }
+  return null;
+}
+
+function clampCount(id: string, n: number): number {
+  const def = field(id);
+  return Math.min(def.max ?? n, Math.max(def.min ?? n, n));
 }
 
 function engineTypeOf(stage: Stage): 0 | 1 | 2 {
@@ -654,9 +524,13 @@ export function writeScalar(
           : 0
         : parseNumber(String(raw));
 
+  if (file.launch.mode === "vertical" && VERTICAL_LAUNCH_LOCKED.has(id)) {
+    return;
+  }
+
   switch (id) {
     case "n_stages":
-      if (num !== null && Number.isInteger(num)) setNStages(file, num);
+      if (num !== null && Number.isInteger(num)) setNStages(file, clampCount(id, num));
       return;
     case "units":
       file.units = num === 0 ? "si" : "english";
@@ -713,10 +587,12 @@ export function writeScalar(
       file.trajectory.control = num === 1 ? "aoaBank" : "pitchBank";
       return;
     case "n_traj":
-      if (num !== null && Number.isInteger(num)) setNTraj(file, num);
+      if (num !== null && Number.isInteger(num)) setNTraj(file, clampCount(id, num));
       return;
     case "n_history":
-      if (num !== null && Number.isInteger(num)) ensureEngineHistory(file, num);
+      if (num !== null && Number.isInteger(num)) {
+        ensureEngineHistory(file, clampCount(id, num));
+      }
       return;
     default:
       break;
@@ -727,13 +603,15 @@ export function writeScalar(
 
   switch (id) {
     case "n_aoa":
-      if (num !== null && Number.isInteger(num)) setNAoa(file, stage, num);
+      if (num !== null && Number.isInteger(num)) setNAoa(file, stage, clampCount(id, num));
       return;
     case "n_mach":
-      if (num !== null && Number.isInteger(num)) setNMach(file, stage, num);
+      if (num !== null && Number.isInteger(num)) setNMach(file, stage, clampCount(id, num));
       return;
     case "n_weight":
-      if (num !== null && Number.isInteger(num)) setNWeight(file, stage, num);
+      if (num !== null && Number.isInteger(num)) {
+        setNWeight(file, stage, clampCount(id, num));
+      }
       return;
     case "tvc_gimbal":
       s.tvcGimbal = num;

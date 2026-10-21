@@ -2,14 +2,16 @@ import { describe, expect, it } from "vitest";
 import {
   choiceOptions,
   cloneInputFile,
-  displayLabel,
-  displayLabelLines,
+  countLimitMessage,
+  createDefaultStage,
   fieldHidden,
+  fieldReadOnly,
   formatScalarValue,
   writeScalar,
   writeVectorElement,
 } from "../src/fieldBinding";
 import { InputFile } from "../src/InputFile";
+import { displayLabel, displayLabelLines } from "../src/labels";
 import { field } from "../src/metadata";
 import { buildNavTree, findNavNode } from "../src/navTree";
 import { validFixtures } from "./fixtures";
@@ -218,41 +220,139 @@ describe("n_stages resize", () => {
   });
 
   it("marks a new default stage incomplete until breakpoint vectors are distinct", () => {
-    const multi = validFixtures.find((f) => f.name === "DATA-10A - US Units")!;
-    const { file } = InputFile.parse(multi.dat);
+    const single = validFixtures.find((f) => f.name === "DATA-17A - X-15 - US Units")!;
+    const { file } = InputFile.parse(single.dat);
     const working = cloneInputFile(file);
 
-    writeScalar(working, "n_stages", 5);
+    writeScalar(working, "n_stages", 2);
     const issues = working.validate();
     expect(
       issues.some(
-        (i) => i.stage === 5 && i.fieldId === "aoa" && /default zero/.test(i.message),
+        (i) => i.stage === 2 && i.fieldId === "aoa" && /default zero/.test(i.message),
       ),
     ).toBe(true);
     expect(
       issues.some(
-        (i) => i.stage === 5 && i.fieldId === "mach" && /default zero/.test(i.message),
+        (i) => i.stage === 2 && i.fieldId === "mach" && /default zero/.test(i.message),
       ),
     ).toBe(true);
 
     const tree = buildNavTree(working, issues);
-    expect(findNavNode(tree, "aero_data-s5")?.status).toBe("incomplete");
-    expect(findNavNode(tree, "normal_force_coef-s5")?.status).toBe("incomplete");
-    expect(findNavNode(tree, "axial_force_coef-s5")?.status).toBe("incomplete");
-    expect(findNavNode(tree, "center_of_pressure-s5")?.status).toBe("incomplete");
-    expect(findNavNode(tree, "cg_and_inertia-s5")?.status).toBe("incomplete");
-    expect(findNavNode(tree, "thrust_vectoring-s5")?.status).toBe("complete");
-    expect(findNavNode(tree, "stage_data-s5")?.status).toBe("incomplete");
+    expect(findNavNode(tree, "aero_data-s2")?.status).toBe("incomplete");
+    expect(findNavNode(tree, "normal_force_coef-s2")?.status).toBe("incomplete");
+    expect(findNavNode(tree, "axial_force_coef-s2")?.status).toBe("incomplete");
+    expect(findNavNode(tree, "center_of_pressure-s2")?.status).toBe("incomplete");
+    expect(findNavNode(tree, "cg_and_inertia-s2")?.status).toBe("incomplete");
+    expect(findNavNode(tree, "thrust_vectoring-s2")?.status).toBe("incomplete");
+    expect(findNavNode(tree, "stage_data-s2")?.status).toBe("incomplete");
 
-    writeVectorElement(working, "aoa", 0, "1", 5);
-    writeVectorElement(working, "aoa", 1, "2", 5);
-    writeVectorElement(working, "aoa", 2, "3", 5);
+    writeVectorElement(working, "aoa", 0, "1", 2);
+    writeVectorElement(working, "aoa", 1, "2", 2);
+    writeVectorElement(working, "aoa", 2, "3", 2);
     const afterAoa = working.validate();
-    expect(findNavNode(buildNavTree(working, afterAoa), "aero_data-s5")?.status).toBe(
+    expect(findNavNode(buildNavTree(working, afterAoa), "aero_data-s2")?.status).toBe(
       "incomplete",
     );
     expect(
-      afterAoa.some((i) => i.stage === 5 && i.fieldId === "aoa" && /unique/.test(i.message)),
+      afterAoa.some((i) => i.stage === 2 && i.fieldId === "aoa" && /unique/.test(i.message)),
     ).toBe(false);
+  });
+});
+
+describe("count limits", () => {
+  it("clamps counts to the metadata bounds", () => {
+    const file = new InputFile();
+    file.stages = [createDefaultStage()];
+    writeScalar(file, "n_stages", "5");
+    expect(file.stages).toHaveLength(4);
+    writeScalar(file, "n_aoa", "9", 1);
+    expect(file.stages[0].aoa).toHaveLength(8);
+    writeScalar(file, "n_mach", "16", 1);
+    expect(file.stages[0].mach).toHaveLength(15);
+    writeScalar(file, "n_traj", "41");
+    expect(file.trajectory.time).toHaveLength(40);
+    writeScalar(file, "n_aoa", "1", 1);
+    expect(file.stages[0].aoa).toHaveLength(3);
+  });
+
+  it("words limit warnings with the on-screen label", () => {
+    const file = new InputFile();
+    file.stages = [createDefaultStage()];
+    expect(countLimitMessage(file, field("n_stages"), 5)).toBe(
+      "Limit for the Number of Stages is 4",
+    );
+    expect(countLimitMessage(file, field("n_aoa"), 9)).toBe(
+      "Maximum Number of Angles of Attack is 8",
+    );
+    expect(countLimitMessage(file, field("n_mach"), 16)).toBe(
+      "Maximum Number of Mach Numbers is 15",
+    );
+    expect(countLimitMessage(file, field("n_traj"), 41)).toBe(
+      "Maximum Number of Trajectory Time History Points is 40",
+    );
+    writeScalar(file, "engine_type", 2, 1);
+    expect(countLimitMessage(file, field("n_history"), 41)).toBe(
+      "Maximum Number of Thrust Time History Points is 40",
+    );
+    expect(countLimitMessage(file, field("n_aoa"), 2)).toBe(
+      "Minimum Number of Angles of Attack is 3",
+    );
+    expect(countLimitMessage(file, field("n_aoa"), 8)).toBeNull();
+  });
+});
+
+describe("vertical launch", () => {
+  it("forces initial velocity, pitch, bank, and AoA and locks them", () => {
+    const file = new InputFile();
+    file.launch.initialVelocity = 500;
+    file.launch.initialPitch = 10;
+    file.launch.initialBank = 20;
+    file.launch.initialAoa = 5;
+    expect(fieldReadOnly(file, field("initial_velocity"))).toBe(false);
+    expect(fieldReadOnly(file, field("initial_pitch"))).toBe(false);
+    expect(fieldReadOnly(file, field("initial_bank"))).toBe(false);
+    expect(fieldReadOnly(file, field("initial_aoa"))).toBe(false);
+    writeScalar(file, "launch_mode", 1);
+    expect(file.launch.initialVelocity).toBe(0);
+    expect(file.launch.initialPitch).toBe(90);
+    expect(file.launch.initialBank).toBe(0);
+    expect(file.launch.initialAoa).toBe(0);
+    expect(fieldReadOnly(file, field("initial_velocity"))).toBe(true);
+    expect(fieldReadOnly(file, field("initial_pitch"))).toBe(true);
+    expect(fieldReadOnly(file, field("initial_bank"))).toBe(true);
+    expect(fieldReadOnly(file, field("initial_aoa"))).toBe(true);
+    writeScalar(file, "initial_velocity", 12);
+    writeScalar(file, "initial_pitch", 45);
+    writeScalar(file, "initial_bank", 15);
+    writeScalar(file, "initial_aoa", 3);
+    expect(file.launch.initialVelocity).toBe(0);
+    expect(file.launch.initialPitch).toBe(90);
+    expect(file.launch.initialBank).toBe(0);
+    expect(file.launch.initialAoa).toBe(0);
+  });
+});
+
+describe("engine type lock", () => {
+  it("does not switch a later stage to the other powered model", () => {
+    const file = new InputFile();
+    file.stages = [createDefaultStage(), createDefaultStage()];
+    writeScalar(file, "engine_type", 2, 1);
+    writeScalar(file, "engine_type", 1, 2);
+    expect(file.stages[1].engine.kind).toBe("none");
+    writeScalar(file, "engine_type", 2, 2);
+    expect(file.stages[1].engine.kind).toBe("thrustHistory");
+    writeScalar(file, "engine_type", 0, 2);
+    expect(file.stages[1].engine.kind).toBe("none");
+  });
+
+  it("does not switch a non-last later stage back to no engine", () => {
+    const file = new InputFile();
+    file.stages = [createDefaultStage(), createDefaultStage(), createDefaultStage()];
+    writeScalar(file, "engine_type", 2, 1);
+    writeScalar(file, "engine_type", 2, 2);
+    writeScalar(file, "engine_type", 0, 2);
+    expect(file.stages[1].engine.kind).toBe("thrustHistory");
+    writeScalar(file, "engine_type", 0, 3);
+    expect(file.stages[2].engine.kind).toBe("none");
   });
 });

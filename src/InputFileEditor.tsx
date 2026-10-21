@@ -75,6 +75,22 @@ export function InputFileEditor({
   );
 
   const handleSelect = (leaf: NavLeaf) => {
+    // Count Thrust Vectoring as reviewed when leaving the page, not on click,
+    // so the outline check does not appear before the page is shown. Not an
+    // edit, so this bypasses onChange and does not mark the document dirty.
+    if (
+      selection?.pageId === "thrust_vectoring" &&
+      selection.stage !== undefined &&
+      leaf.id !== selection.id
+    ) {
+      const index = selection.stage - 1;
+      setFile((prev) => {
+        if (prev.stages[index]?.tvcVisited !== false) return prev;
+        const next = cloneInputFile(prev);
+        next.stages[index].tvcVisited = true;
+        return next;
+      });
+    }
     setSelectedId(leaf.id);
   };
 

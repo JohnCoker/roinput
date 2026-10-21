@@ -17,6 +17,7 @@
 
 import { field } from "./metadata";
 import type { IssueKind } from "./issueKind";
+import { displayName } from "./labels";
 
 export type Units = "si" | "english";
 export type AeroType = "clcd" | "cnca";
@@ -67,6 +68,9 @@ export interface Stage {
   tvcGimbal: number | null;
   tvcPercent: number | null;
   tvcMaxAngle: number | null;
+  /** Session-only (not stored in the file): all-zero thrust vectoring is valid, so the
+   * page counts as complete only after it has been shown and then left. */
+  tvcVisited: boolean;
   // Page 10 (stage / engine data).
   startTime: number | null;
   refArea: number | null;
@@ -423,12 +427,21 @@ function emptyStage(): Stage {
     tvcGimbal: null,
     tvcPercent: null,
     tvcMaxAngle: null,
+    tvcVisited: false,
     startTime: null,
     refArea: null,
     initialWeight: null,
     burnoutWeight: null,
     engine: { kind: "none" },
   };
+}
+
+function allZero(values: number[]): boolean {
+  return values.length > 0 && values.every((v) => v === 0);
+}
+
+function looksLikeDefaultAeroBreakpoints(stage: Stage): boolean {
+  return allZero(stage.aoa) && allZero(stage.mach);
 }
 
 export class InputFile {
@@ -657,7 +670,7 @@ export class InputFile {
       issues.push({
         fieldId: "title",
         kind: "missing",
-        message: `${field("title").label} is required`,
+        message: `${displayName(this, field("title"))} is required`,
       });
     }
     const checkNum = (
@@ -666,12 +679,13 @@ export class InputFile {
       loc?: { stage?: number; index?: number },
     ): void => {
       const def = field(id);
+      const name = displayName(this, def);
       if (v === null) {
         issues.push({
           fieldId: id,
           ...loc,
           kind: "missing",
-          message: `${def.label} is required`,
+          message: `${name} is required`,
         });
         return;
       }
@@ -680,7 +694,7 @@ export class InputFile {
           fieldId: id,
           ...loc,
           kind: "invalid",
-          message: `${def.label} must be a whole number`,
+          message: `${name} must be a whole number`,
         });
       }
       if (def.min !== undefined && v < def.min) {
@@ -688,7 +702,7 @@ export class InputFile {
           fieldId: id,
           ...loc,
           kind: "invalid",
-          message: `${def.label} must be at least ${def.min}`,
+          message: `${name} must be at least ${def.min}`,
         });
       }
       if (def.max !== undefined && v > def.max) {
@@ -696,7 +710,7 @@ export class InputFile {
           fieldId: id,
           ...loc,
           kind: "invalid",
-          message: `${def.label} must be at most ${def.max}`,
+          message: `${name} must be at most ${def.max}`,
         });
       }
     };
@@ -719,11 +733,19 @@ export class InputFile {
       checkNum("tvc_gimbal", stage.tvcGimbal, { stage: sn });
       checkNum("tvc_percent", stage.tvcPercent, { stage: sn });
       checkNum("tvc_maxangle", stage.tvcMaxAngle, { stage: sn });
+      if (!stage.tvcVisited) {
+        issues.push({
+          fieldId: "tvc_gimbal",
+          stage: sn,
+          kind: "missing",
+          message: "Thrust Vectoring has not been reviewed yet",
+        });
+      }
       checkNum("stage_start_time", stage.startTime, { stage: sn });
       checkNum("aero_ref_area", stage.refArea, { stage: sn });
       checkNum("stage_initial_weight", stage.initialWeight, { stage: sn });
       checkNum("stage_burnout_weight", stage.burnoutWeight, { stage: sn });
-      validateEngine(issues, stage.engine, sn);
+      validateEngine(this, issues, stage.engine, sn);
     });
 
     const l = this.launch;
@@ -759,7 +781,7 @@ export class InputFile {
       issues.push({
         fieldId: "n_traj",
         kind: "missing",
-        message: `${field("n_traj").label} is required`,
+        message: `${displayName(this, field("n_traj"))} is required`,
       });
     } else {
       this.checkBreakpointVector(issues, "traj_time", this.trajectory.time);
@@ -772,21 +794,16 @@ export class InputFile {
     return issues;
   }
 
-  private allZero(values: number[]): boolean {
-    return values.length > 0 && values.every((v) => v === 0);
-  }
-
   private pushDefaultZeros(
     issues: Issue[],
     id: string,
     stage?: number,
   ): void {
-    const def = field(id);
     issues.push({
       fieldId: id,
       stage,
       kind: "placeholder",
-      message: `${def.label} still has default zero values`,
+      message: `${displayName(this, field(id))} still has default zero values`,
     });
   }
 
@@ -797,13 +814,9 @@ export class InputFile {
     values: number[],
     stage?: number,
   ): boolean {
-    if (!this.allZero(values)) return false;
+    if (!allZero(values)) return false;
     this.pushDefaultZeros(issues, id, stage);
     return true;
-  }
-
-  private looksLikeDefaultAeroBreakpoints(stage: Stage): boolean {
-    return this.allZero(stage.aoa) && this.allZero(stage.mach);
   }
 
   /** Weight/CG/inertia all zero only flags WIP when aero breakpoints are still template zeros. */
@@ -812,11 +825,11 @@ export class InputFile {
     stage: Stage,
     stageNo: number,
   ): void {
-    if (!this.looksLikeDefaultAeroBreakpoints(stage)) return;
+    if (!looksLikeDefaultAeroBreakpoints(stage)) return;
     if (
-      !this.allZero(stage.weight) ||
-      !this.allZero(stage.cg) ||
-      !this.allZero(stage.inertia)
+      !allZero(stage.weight) ||
+      !allZero(stage.cg) ||
+      !allZero(stage.inertia)
     ) {
       return;
     }
@@ -828,7 +841,7 @@ export class InputFile {
     stage: Stage,
     stageNo: number,
   ): void {
-    if (!this.looksLikeDefaultAeroBreakpoints(stage)) return;
+    if (!looksLikeDefaultAeroBreakpoints(stage)) return;
     const n = (v: number | null) => v ?? 0;
     if (
       n(stage.startTime) !== 0 ||
@@ -858,7 +871,7 @@ export class InputFile {
     values: number[],
     stage?: number,
   ): void {
-    const def = field(id);
+    const name = displayName(this, field(id));
     const seen = new Set<number>();
     values.forEach((v, index) => {
       if (seen.has(v)) {
@@ -867,7 +880,7 @@ export class InputFile {
           stage,
           index,
           kind: "placeholder",
-          message: `${def.label} values must be unique`,
+          message: `${name} values must be unique`,
         });
       } else {
         seen.add(v);
@@ -938,18 +951,27 @@ export class InputFile {
       });
     }
 
-    // Engine model rules: no mixing; only the last stage may be a glider.
+    // Engine model rules: the first powered stage (normally stage 1) sets the model
+    // for every later stage. Show the required-model error immediately if a later
+    // stage has not chosen that model yet; only the last stage may stay a glider.
     const kinds = this.stages.map((s) => s.engine.kind);
-    const powered = kinds.filter((k) => k !== "none");
-    const distinct = new Set(powered);
-    if (distinct.size > 1) {
+    const referenceIndex = kinds.findIndex((k) => k !== "none");
+    const reference = referenceIndex >= 0 ? kinds[referenceIndex] : undefined;
+    kinds.forEach((k, i) => {
+      if (reference === undefined || i <= referenceIndex) return;
+      if (k === reference) return;
+      const isLast = i === kinds.length - 1;
+      if (k === "none" && isLast) return;
       issues.push({
         fieldId: "engine_type",
+        stage: i + 1,
         kind: "invalid",
         message:
-          "All powered stages must use the same engine model (no mixing of chamber-pressure and thrust-history)",
+          reference === "chamberPressure"
+            ? "Model Using Chamber Pressure must be selected"
+            : "Thrust Time History Model must be selected",
       });
-    }
+    });
     kinds.forEach((k, i) => {
       const isLast = i === kinds.length - 1;
       if (k === "none" && this.stages.length > 1 && !isLast) {
@@ -991,6 +1013,8 @@ function parseAero(reader: Reader): Stage {
   stage.tvcGimbal = tvc[0];
   stage.tvcPercent = tvc[1];
   stage.tvcMaxAngle = tvc[2];
+  // A saved work-in-progress stage whose aero data is still template zeros stays unvisited.
+  stage.tvcVisited = !looksLikeDefaultAeroBreakpoints(stage);
   return stage;
 }
 
@@ -1115,6 +1139,7 @@ function serializeStageEngine(out: string[], stage: Stage): void {
 }
 
 function validateEngine(
+  file: InputFile,
   issues: Issue[],
   engine: StageEngine,
   stage: number,
@@ -1126,7 +1151,7 @@ function validateEngine(
         fieldId: id,
         stage,
         kind: "invalid",
-        message: `${def.label} must be at least ${def.min}`,
+        message: `${displayName(file, def)} must be at least ${def.min}`,
       });
     }
     if (def.max !== undefined && v > def.max) {
@@ -1134,7 +1159,7 @@ function validateEngine(
         fieldId: id,
         stage,
         kind: "invalid",
-        message: `${def.label} must be at most ${def.max}`,
+        message: `${displayName(file, def)} must be at most ${def.max}`,
       });
     }
   };

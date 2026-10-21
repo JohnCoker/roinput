@@ -40,6 +40,24 @@ describe("WIP save reload outline", () => {
     expect(leafStatus(loaded, "trajectory_control")).toBe("incomplete");
   });
 
+  it("keeps thrust vectoring incomplete until its page has been left", () => {
+    const fresh = new InputFile();
+    fresh.stages = [createDefaultStage()];
+    expect(leafStatus(fresh, "aero_notes")).toBe("complete");
+    expect(leafStatus(fresh, "thrust_vectoring")).toBe("incomplete");
+
+    const { file: reloadedTemplate } = InputFile.parse(fresh.serialize());
+    expect(leafStatus(reloadedTemplate, "thrust_vectoring")).toBe("incomplete");
+
+    fresh.stages[0].tvcVisited = true;
+    expect(leafStatus(fresh, "thrust_vectoring")).toBe("complete");
+
+    fresh.stages[0].tvcVisited = false;
+    fresh.stages[0].aoa = [0, 5, 10];
+    const { file: reloadedWithAero } = InputFile.parse(fresh.serialize());
+    expect(leafStatus(reloadedWithAero, "thrust_vectoring")).toBe("complete");
+  });
+
   it("matches expected page status after round-trip with title only", () => {
     const file = new InputFile();
     file.title = "Foo";

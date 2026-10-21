@@ -38,6 +38,7 @@ export function PagePanel({ file, selection, issues, onUpdate }: PagePanelProps)
     >
       <div style={{ marginBottom: tokens.spacingVerticalL }}>
         <Title3
+          block
           style={{
             marginBottom: heading.trim() ? tokens.spacingVerticalM : 0,
           }}
@@ -58,6 +59,7 @@ export function PagePanel({ file, selection, issues, onUpdate }: PagePanelProps)
       </div>
 
       <PageForm
+        key={selection.id}
         file={file}
         selection={selection}
         issues={issues}

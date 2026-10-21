@@ -276,6 +276,18 @@ fn build_app_menu(handle: &tauri::AppHandle, state: &AppState) -> tauri::Result<
     let help_check_version_item =
         MenuItemBuilder::with_id("help-check-new-version", "Check for Updates…").build(handle)?;
 
+    // macOS routes Cut/Copy/Paste/Undo through the Edit menu. Without it, Cmd+V
+    // does nothing in the webview even though typing still works.
+    let edit_submenu = SubmenuBuilder::with_id(handle, "edit", "Edit")
+        .undo()
+        .redo()
+        .separator()
+        .cut()
+        .copy()
+        .paste()
+        .select_all()
+        .build()?;
+
     if cfg!(target_os = "macos") {
         let app_submenu = SubmenuBuilder::with_id(handle, "app", &app_name)
             .about_with_text(&about_item_text, Some(about_meta.clone()))
@@ -289,6 +301,7 @@ fn build_app_menu(handle: &tauri::AppHandle, state: &AppState) -> tauri::Result<
         MenuBuilder::new(handle)
             .item(&app_submenu)
             .item(&file_submenu)
+            .item(&edit_submenu)
             .item(&help_submenu)
             .build()
     } else {
@@ -300,6 +313,7 @@ fn build_app_menu(handle: &tauri::AppHandle, state: &AppState) -> tauri::Result<
             .build()?;
         MenuBuilder::new(handle)
             .item(&file_submenu)
+            .item(&edit_submenu)
             .item(&help_submenu)
             .build()
     }
@@ -469,6 +483,27 @@ fn request_exit(app: tauri::AppHandle) {
     app.exit(0);
 }
 
+/// WebView2's form autofill ("Saved info") offers numbers typed into other inputs,
+/// which are almost never the right value for an input-file field.
+#[cfg(windows)]
+fn disable_webview_autofill(window: &tauri::WebviewWindow) {
+    use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Settings4;
+    use windows_core::Interface;
+
+    let _ = window.with_webview(|webview| unsafe {
+        let Ok(core) = webview.controller().CoreWebView2() else {
+            return;
+        };
+        let Ok(settings) = core
+            .Settings()
+            .and_then(|s| s.cast::<ICoreWebView2Settings4>())
+        else {
+            return;
+        };
+        let _ = settings.SetIsGeneralAutofillEnabled(false);
+    });
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let state = Arc::new(AppState::default());
@@ -525,6 +560,11 @@ pub fn run() {
                         pending.extend(files);
                     }
                 }
+            }
+
+            #[cfg(windows)]
+            if let Some(window) = app.get_webview_window("main") {
+                disable_webview_autofill(&window);
             }
 
             #[cfg(not(windows))]

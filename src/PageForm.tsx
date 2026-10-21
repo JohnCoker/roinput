@@ -52,9 +52,6 @@ function clusterRows(defs: FieldDef[]): FieldDef[][] {
 }
 
 function fieldSpacingStyle(pageId: PageId, def: FieldDef): CSSProperties | undefined {
-  if (pageId === "launch_setup" && def.id === "launch_mode") {
-    return { marginTop: tokens.spacingVerticalL };
-  }
   if (pageId === "launch_setup" && def.id === "integration_time_step") {
     return { marginTop: tokens.spacingVerticalL };
   }
@@ -87,12 +84,7 @@ const STAGE_DATA_COLS = FORM_COLS;
 function alignedRowSpacingStyle(pageId: PageId, row: FieldDef[]): CSSProperties | undefined {
   if (
     pageId === "stage_data" &&
-    row.some(
-      (def) =>
-        def.id === "throat_area" ||
-        def.id === "tth_burn_time" ||
-        def.id === "ratio_specific_heats",
-    )
+    row.some((def) => def.id === "throat_area" || def.id === "tth_burn_time")
   ) {
     return { marginTop: tokens.spacingVerticalL };
   }
