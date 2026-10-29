@@ -30,6 +30,8 @@ import { displayLabel, displayLabelLines } from "./labels";
 
 const VECTOR_COLS = 8;
 const TITLE_MAX_LENGTH = 80;
+// Proportional font, so this is approximate; extra room keeps typical capitalized titles visible.
+const TITLE_INPUT_MAX_WIDTH = "85ch";
 
 const useStyles = makeStyles({
   tableWrap: {
@@ -95,6 +97,12 @@ const useStyles = makeStyles({
   columnInput: {
     width: "100%",
     maxWidth: "100%",
+    minWidth: 0,
+    boxSizing: "border-box",
+  },
+  titleInput: {
+    width: "100%",
+    maxWidth: TITLE_INPUT_MAX_WIDTH,
     minWidth: 0,
     boxSizing: "border-box",
   },
@@ -365,7 +373,7 @@ function ScalarControl({
         className={styles.fieldShell}
       >
         <Input
-          className={styles.columnInput}
+          className={styles.titleInput}
           value={file.title}
           autoComplete="off"
           onChange={(_, data) => {
